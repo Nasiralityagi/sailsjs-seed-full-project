@@ -13,12 +13,21 @@ module.exports = {
       'type': 'string',
       'required': true,
     },
+    'bandwidth': {
+      'type': 'string',
+    },
+    'data_limit': {
+      'type': 'string',
+    },
     'status_id': {
       'type': 'number',
       // 'required': true,
       'defaultsTo': 1
     },
-
+    connection: {
+      collection: 'connection',
+      via: 'packages'
+    },
   },
 
 };

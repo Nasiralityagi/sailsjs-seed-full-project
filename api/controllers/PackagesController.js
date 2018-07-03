@@ -5,7 +5,6 @@
  * @help        :: See https://sailsjs.com/docs/concepts/actions
  */
 
-var _ = require('lodash'); 
 module.exports = {
 
     create:function(req,res){       
@@ -19,11 +18,13 @@ module.exports = {
     
       const newPackage = await Packages.create({
         'package_name': req.param('package_name'),
+        'bandwidth': req.param('bandwidth'),
+        'data_limit': req.param('data_limit'),
         'status_id': Status.ACTIVE,     
       }).fetch();
      
-      if (newUser)
-        return newUser;
+      if (newPackage)
+        return newPackage;
 
       throw new CustomError('Some error occurred. Please contact support team for help. ');
     }
@@ -92,12 +93,17 @@ module.exports = {
       const getPackages = async() => {
   
         const packages_count = await Packages.count();
+        if (!packages_count){
+          return new CustomError('package not found', {
+            status: 403
+          });
+        }
         let packages = await Packages.find(queryObject);
-        // .paginate({
-        //   page: parseInt(params.page, 10),
-        //   limit: parseInt(params.per_page, 10) // Overwrite the project-wide settings
-  
-        // });
+        if (!packages){
+          return new CustomError('package not found', {
+            status: 403
+          });
+        }
         const responseObject = {
           packages: packages,
           totalCount: packages_count,

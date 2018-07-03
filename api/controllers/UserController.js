@@ -4,13 +4,12 @@
  * @description :: Server-side logic for managing users
  * @help        :: See http://sailsjs.org/#!/documentation/concepts/Controllers
  */
-var _ = require('lodash'); 
 module.exports = {
 
     create:function(req,res){       
 
     let password = util.string.random.number(11);
-
+  
     if (!req.param('first_name') || !_.isString(req.param('first_name'))) {
       return res.badRequest("first_name required");
     }
@@ -131,12 +130,18 @@ module.exports = {
   
       const getUsers = async() => {
   
-        const user_count = await User.count(queryObject);
-        let users = await User.find(queryObject).paginate({
-          page: parseInt(params.page, 10),
-          limit: parseInt(params.per_page, 10) // Overwrite the project-wide settings
-  
-        });
+        const user_count = await User.count();
+        if (!user_count){
+          return new CustomError('user not found', {
+            status: 403
+          });
+        }
+        let users = await User.find(queryObject)
+        if (!users){
+          return new CustomError('user not found', {
+            status: 403
+          });
+        }
         const responseObject = {
           users: users,
           totalCount: user_count,

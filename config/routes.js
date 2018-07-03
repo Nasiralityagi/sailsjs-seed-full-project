@@ -30,35 +30,53 @@ module.exports.routes = {
 
  // for UserController
 
-  'POST /signup': 'UserController.create',
-  'POST /findOne': 'UserController.findOne',
-  'POST /Users': 'UserController.find',
-  'POST /User/Update': 'UserController.Update',
-  'DELETE /User/delete': 'UserController.delete',
-  'POST /login': 'UserController.login',
+  'POST /user/create': 'UserController.create',
+  'POST /user/findOne': 'UserController.findOne',
+  'GET /user/find': 'UserController.find',
+  'POST /user/update': 'UserController.Update',
+  'DELETE /user/delete': 'UserController.delete',
+  'POST /user/login': 'UserController.login',
 
   // for CustomersController
 
   'POST /customer/create': 'CustomersController.create',
-  'POST /customer/find': 'CustomersController.find',
+  'GET /customer/find': 'CustomersController.find',
+  'POST /customer/findOne': 'CustomersController.findOne',
+  'POST /customer/update': 'CustomersController.Update',
+  'DELETE /customer/delete': 'CustomersController.delete',
+  'POST /customer/login': 'CustomersController.login',
 
-   // for DocumentsController
+  // for DocumentsController
 
    'POST /documents/create': 'DocumentsController.create',
-   'POST /documents/find': 'DocumentsController.find',
+   'GET /documents/find': 'DocumentsController.find',
    'POST /documents/findOne': 'DocumentsController.findOne',
- 
+   'POST /documents/update': 'DocumentsController.Update',
+   'DELETE /documents/delete': 'DocumentsController.delete',
+
 // for  BasestationController
 
-'POST /basestation/create': 'BasestationController.create',
-'POST /basestation/find': 'BasestationController.find',
-'POST /basestation/findOne': 'BasestationController.findOne',
+  'POST /basestation/create': 'BasestationController.create',
+  'GET /basestation/find': 'BasestationController.find',
+  'POST /basestation/findOne': 'BasestationController.findOne',
+  'POST /basestation/update': 'BasestationController.Update',
+  'DELETE /basestation/delete': 'BasestationController.delete',
 
 // for  ConnectionController
 
 'POST /connection/create': 'ConnectionController.create',
-'POST /connection/find': 'ConnectionController.find',
+'GET /connection/find': 'ConnectionController.find',
 'POST /connection/findOne': 'ConnectionController.findOne',
+'POST /connection/update': 'ConnectionController.Update',
+'DELETE /connection/delete': 'ConnectionController.delete',
+
+// for  PackagesController
+
+'POST /package/create': 'PackagesController.create',
+'GET /package/find': 'PackagesController.find',
+'POST /package/findOne': 'PackagesController.findOne',
+'POST /package/update': 'PackagesController.Update',
+'DELETE /package/delete': 'PackagesController.delete',
 
   /***************************************************************************
   *                                                                          *

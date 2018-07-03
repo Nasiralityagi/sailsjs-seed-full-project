@@ -13,15 +13,24 @@ module.exports = {
       'type': 'string',
       'required': true
     },
-    'router_price': {
-        'type': 'string',
-        'required': true
+    'router_of': {
+      'type': 'string',
+      'required': true
     },
-    'drop_wire': {
+    'router_brand': {
+      'type': 'string',
+    },
+    'router_model': {
+        'type': 'string',
+    },
+    'router_price': {
+      'type': 'string',
+    },
+    'drop_wire_of': {
         'type': 'string',
         'required': true,
     },
-    'wire_length': {
+    'drop_wire_length': {
         'type': 'string',
     },
     'price_per_meter': {
@@ -52,6 +61,12 @@ module.exports = {
       model:'basestation',
       unique: true,
       required : true,
+    },
+    'packages': {
+      'columnName': 'package_id',
+      'model': 'packages',
+      'unique': true,
+      'required' : true,
     },
     'salesman': {
       'columnName': 'salesman_id',

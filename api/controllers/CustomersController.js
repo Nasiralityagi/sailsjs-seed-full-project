@@ -140,8 +140,17 @@ module.exports = {
       console.log("queryObject " + queryObject);
       const getCustomers = async() => {
         
-        const customers_count =  await Customers.count(queryObject);
+        if (!customers_count){
+            return new CustomError('customer not found', {
+              status: 403
+            });
+        }
         let customers = await Customers.find(queryObject);
+        if (!customers){
+            return new CustomError('customer not found', {
+              status: 403
+            });
+        }
         const responseObject = {
           customers: customers,
           totalCount: customers_count,

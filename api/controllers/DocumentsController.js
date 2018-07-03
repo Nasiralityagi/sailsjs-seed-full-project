@@ -98,12 +98,17 @@ module.exports = {
       const getDocuments = async() => {
   
         const Documents_count = await Documents.count();
+        if (!Documents_count){
+          return new CustomError('document not found', {
+            status: 403
+          });
+        }
         let documents = await Documents.find(queryObject).populate('customers');;
-        // .paginate({
-        //   page: parseInt(params.page, 10),
-        //   limit: parseInt(params.per_page, 10) // Overwrite the project-wide settings
-  
-        // });
+        if (!documents){
+          return new CustomError('document not found', {
+            status: 403
+          });
+        }
         const responseObject = {
           documents: documents,
           totalCount: Documents_count,

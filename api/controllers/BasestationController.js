@@ -109,12 +109,17 @@ module.exports = {
       const getBasestations = async() => {
   
         const Basestation_count = await Basestation.count();
+        if (!Basestation_count){
+            return new CustomError('Basestation not found', {
+              status: 403
+            });
+        }
         let Basestations = await Basestation.find(queryObject);
-        // .paginate({
-        //   page: parseInt(params.page, 10),
-        //   limit: parseInt(params.per_page, 10) // Overwrite the project-wide settings
-  
-        // });
+        if (!Basestations){
+          return new CustomError('Basestation not found', {
+            status: 403
+          });
+      }
         const responseObject = {
           Basestations: Basestations,
           totalCount: Basestation_count,

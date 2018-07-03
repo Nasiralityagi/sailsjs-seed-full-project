@@ -5,7 +5,6 @@
  * @help        :: See https://sailsjs.com/docs/concepts/actions
  */
 
-var _ = require('lodash'); 
 module.exports = {
 
     create:function(req,res){       
@@ -16,18 +15,37 @@ module.exports = {
     if (!req.param('is_wireless')) {
       return res.badRequest("is_wireless required");
     }
+    if (!req.param('router_of')) {
+      return res.badRequest("router_of required");
+    }
+    if (!req.param('drop_wire_of')) {
+      return res.badRequest("drop_wire_of required");
+    }
+    if (!req.param('customer_id')) {
+      return res.badRequest("customer_id required");
+    }
+    if (!req.param('basestation_id')) {
+      return res.badRequest("basestation_id required");
+    }
+    if (!req.param('package_id')) {
+      return res.badRequest("package_id required");
+    }
     const process = async () => {
 
       const newConnection = await Connection.create({
         'address': req.param('address'),
+        'router_of': req.param('router_of'),
+        'router_brand': req.param('router_brand'),
+        'router_model': req.param('router_model'),
         'router_price': req.param('router_price'),
-        'drop_wire': req.param('drop_wire'),
-        'wire_length': req.param('wire_length'),
+        'drop_wire_of': req.param('drop_wire_of'),
+        'drop_wire_length': req.param('drop_wire_length'),
         'price_per_meter': req.param('price_per_meter'),
         'is_wireless': req.param('is_wireless'),
         'lat': req.param('lat'),
         'lag': req.param('lag'),
         'customers': req.param('customer_id'),
+        'packages': req.param('package_id'),
         'basestation': req.param('basestation_id'),
         'salesman': req.param('salesman_id'),
         'dealer': req.param('dealer_id'),
@@ -105,13 +123,18 @@ module.exports = {
       const getConnection = async() => {
   
         const Connection_count = await Connection.count();
-        let connection = await Connection.find(queryObject).populate('customers').populate('basestation')
+        if (!Connection_count){
+          return new CustomError('connection not found', {
+            status: 403
+          });
+        }
+        let connection = await Connection.find(queryObject).populate('customers').populate('basestation').populate('packages')
             .populate('salesman').populate('dealer') ;
-        // .paginate({
-        //   page: parseInt(params.page, 10),
-        //   limit: parseInt(params.per_page, 10) // Overwrite the project-wide settings
-  
-        // });
+        if (!connection){
+            return new CustomError('connection not found', {
+              status: 403
+            });
+        }
         const responseObject = {
             connection: connection,
           totalCount: Connection_count,
@@ -134,7 +157,7 @@ module.exports = {
       const getConnection = async() => {
         let connection = await Connection.findOne({
           id: ConnectionId
-        }).populate('customers').populate('basestation')
+        }).populate('customers').populate('basestation').populate('packages')
         .populate('salesman').populate('dealer') ;
   
         if (connection)
@@ -175,11 +198,11 @@ module.exports = {
   
         let Connection = {};
   
-        if (req.param('file_name') != undefined && _.isString(req.param('file_name'))) {
-          Connection.file_name = req.param('file_name');
+        if (req.param('address') != undefined && _.isString(req.param('address'))) {
+          Connection.address = req.param('address');
         }
-        if (req.param('file_path') != undefined && _.isNumber(req.param('file_path'))) {
-          Connection.file_path = req.param('file_path');
+        if (req.param('customer_id') != undefined && _.isNumber(req.param('customer_id'))) {
+          Connection.customer_id = req.param('customer_id');
         }
   
   
