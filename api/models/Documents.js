@@ -10,11 +10,17 @@ module.exports = {
   attributes: {
     'file_name': {
       'type': 'string',
-      'required': true,
+      // 'required': true,
     },
     'file_path': {
       'type': 'string',
       'required': true,
+    },
+    'file_of':{
+      'type': 'string',
+    },
+    'file_of_id':{
+      'type': 'number',
     },
     'status_id': {
       'type': 'number',
@@ -22,11 +28,7 @@ module.exports = {
       'defaultsTo': 1
     },
     // association 
-    'customers': {
-      'columnName': 'customer_id',
-      'model': 'customers',
-      'required': true
-    },
+   
   
 
   },

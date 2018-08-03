@@ -18,13 +18,30 @@ module.exports.policies = {
   ***************************************************************************/
 
   // '*': true,
+  // '*': ['isAdmin' , 'isAuth'],
+  '*': ['isAuth'],
   UserController:{
     'create':true,
-    'find':true,
-    'findOne':true,
-    'Update':true,
-    'delete':true,
-    
-  }
-
+    'login':true,
+    'logout':true, 
+  },
+  RoutesController:{
+    'create':true,  
+    'find':true 
+  },
+  RolesRoutesController:{
+    'create':true,  
+  },
+  RolesController:{
+    'create':true,  
+  },
+  UsersRoutesController:{
+    'create':true,  
+  },
+  // ExpirationReportController:{
+  //   'find':true,
+  // }
+  // ConnRenewalController:{
+  //   'create':true,  
+  // }
 };

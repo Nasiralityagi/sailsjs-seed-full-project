@@ -14,26 +14,31 @@ module.exports = {
     },
     'last_name': {
         'type': 'string',
-        'required': true
+        // 'required': true
     },
     'email': {
         'type': 'string',
         //'required': true,
         //'unique': true
     },
+    'username': {
+        'type': 'string',
+        //'required': true,
+        //'unique': true
+    },
     'password': {
         'type': 'string',
-        'required': true
+        // 'required': true
     },
     'mobile': {
         'type': 'string',
         'required': true,
-        'unique': true
+        // 'unique': true
     },       
     'cnic': {
         'type': 'string',
-        'required': true,
-        'unique': true
+        // 'required': true,
+        // 'unique': true
     },
     'status_id': {
       'type': 'number',
@@ -41,14 +46,15 @@ module.exports = {
       'defaultsTo': 1
     },
     // Association
-    documents: {
-      collection: 'documents',
+   
+    userconnection: {
+      collection: 'userconnection',
       via: 'customers'
     },
-    connection: {
-      collection: 'connection',
-      via: 'customers'
-    },
+    stockout: {
+        collection: 'stockout',
+        via: 'customers'
+      },
     
   },
 

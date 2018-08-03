@@ -25,6 +25,7 @@ module.exports = {
     // For account
     ACTIVE: 16,
     INACTIVE: 17,
+    EXPIRED:45,
 
     // For Transactions
     PAID: 18,

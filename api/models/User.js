@@ -12,21 +12,21 @@ module.exports = {
     
     tableName: 'users',
 
-    ADMIN: 0,
-    DEALER: 1,
-    SALES_PERSON: 2,
-    ACCOUNTANT: 3,
-    LOGIN_MANAGER: 4,
+    // ADMIN: 0,
+    // DEALER: 1,
+    // SALES_PERSON: 2,
+    // ACCOUNTANT: 3,
+    // LOGIN_MANAGER: 4,
 
    
 
     attributes: {
 
-        'role_type': {
-            'type': 'number',
-            'isIn': RoleType,
-            'required': true
-        },
+        // 'role_type': {
+        //     'type': 'number',
+        //     'isIn': RoleType,
+        //     'required': true
+        // },
         'title': {
             'type': 'string',
             'isIn': ['Mr', 'Mrs', 'Miss'],
@@ -39,6 +39,11 @@ module.exports = {
         'last_name': {
             'type': 'string',
             'required': true
+        },
+        'username': {
+            'type': 'string',
+            'required': true,
+            'unique': true
         },
         'email': {
             'type': 'string',
@@ -81,17 +86,57 @@ module.exports = {
         'is_admin': {
             'type': 'boolean',
             'defaultsTo': false
-        },        
+        },      
 
         // Associations
-        
+        'role': {
+            'columnName': 'role_id',
+            'model': 'roles',
+            'required' : true,
+          },
         salesman: {
-            collection: 'connection',
+            collection: 'userconnection',
             via: 'salesman'
         },
         dealer: {
-            collection: 'connection',
+            collection: 'userconnection',
             via: 'dealer'
+        },
+        dealer: {
+            collection: 'dealerpackages',
+            via: 'dealer'
+        },
+        usersroutes: {
+            collection: 'usersroutes',
+            via: 'user'
+        },
+        connrenewal: {
+            collection: 'connrenewal',
+            via: 'user'
+        },
+        dealermap: {
+            collection: 'dealermap',
+            via: 'dealer'
+        },
+        registered_by: {
+            collection: 'complaints',
+            via: 'registered_by'
+        },
+        assigned_to: {
+            collection: 'complaints',
+            via: 'assigned_to'
+        },
+        dealer: {
+            collection: 'complaints',
+            via: 'dealer'
+        },
+        dealer: {
+            collection: 'stockout',
+            via: 'dealer'
+        },
+        installed_by: {
+            collection: 'userconnection',
+            via: 'installed_by'
         },
     }
 };

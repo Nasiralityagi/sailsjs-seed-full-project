@@ -33,7 +33,7 @@ module.exports = {
         'name': req.param('name'),
         'address': req.param('address'),
         'lat': req.param('lat'),
-        'lag': req.param('lag'),
+        'lng': req.param('lng'),
         'status_id': Status.ACTIVE,
         'bandwidth': req.param('bandwidth'),
         'max_connection': req.param('max_connection')  
@@ -90,8 +90,8 @@ module.exports = {
         }
       }
       let queryObject = {
-        where: {},
-        limit: parseInt(params.per_page),
+        where: {status_id :{'!=': Status.DELETED} },
+        // limit: parseInt(params.per_page),
         sort: '',
       };
   
@@ -108,20 +108,20 @@ module.exports = {
   
       const getBasestations = async() => {
   
-        const Basestation_count = await Basestation.count();
+        const Basestation_count = await Basestation.count({where: {status_id :{'!=': Status.DELETED} }});
         if (!Basestation_count){
             return new CustomError('Basestation not found', {
               status: 403
             });
         }
-        let Basestations = await Basestation.find(queryObject);
-        if (!Basestations){
+        let basestation = await Basestation.find(queryObject);
+        if (!basestation){
           return new CustomError('Basestation not found', {
             status: 403
           });
       }
         const responseObject = {
-          Basestations: Basestations,
+          basestation: basestation,
           totalCount: Basestation_count,
           perPage: params.per_page,
           currentPage: params.page
@@ -137,15 +137,15 @@ module.exports = {
 
       if (!(req.param('id')) || isNaN(req.param('id')))
         return res.badRequest('Not a valid request');
-      let BasestationId = req.param('id')
-  
+      let BasestationId = req.param('id');
+      let queryObject = {
+        where: {id: BasestationId , status_id :{'!=': Status.DELETED} }
+      };
       const getBasestation = async() => {
-        let Basestation = await Basestation.findOne({
-          id: BasestationId
-        });
+        let basestation = await Basestation.findOne(queryObject);
   
-        if (Basestation)
-          return Basestation;
+        if (basestation)
+          return basestation;
         else
           return new CustomError('Basestation not found', {
             status: 403
@@ -167,9 +167,9 @@ module.exports = {
         return res.badRequest("Id is required");
       }
       let BasestationId = req.param('id');
-  
+      
       const updateBasestation = async() => {
-  
+        
         const oldBasestation = await Basestation.count({
           id: BasestationId
         });
@@ -180,25 +180,33 @@ module.exports = {
           });
         }
   
-        let Basestation = {};
+        let basestation = {};
   
         if (req.param('name') != undefined && _.isString(req.param('name'))) {
-          Basestation.name = req.param('name');
+          basestation.name = req.param('name');
         }
-        if (req.param('address') != undefined && _.isNumber(req.param('address'))) {
-          Basestation.address = req.param('address');
+        if (req.param('address') != undefined && _.isString(req.param('address'))) {
+          basestation.address = req.param('address');
         }
         if (req.param('bandwidth') != undefined && _.isString(req.param('bandwidth'))) {
-          Basestation.bandwidth = req.param('bandwidth');
+          basestation.bandwidth = req.param('bandwidth');
         }
-        if (req.param('status_id') != undefined && _.isString(req.param('status_id'))) {
-          Basestation.status_id = req.param('status_id');
+        if (req.param('lat') != undefined && _.isString(req.param('lat'))) {
+          basestation.lat = req.param('lat');
         }
-  
+        if (req.param('lng') != undefined && _.isString(req.param('lng'))) {
+          basestation.lng = req.param('lng');
+        }
+        if (req.param('max_connection') != undefined && _.isString(req.param('max_connection'))) {
+          basestation.max_connection = req.param('max_connection');
+        }
+        if (req.param('status_id') != undefined && _.isNumber(req.param('status_id'))) {
+          basestation.status_id = req.param('status_id');
+        }
   
         const updatedBasestation = await Basestation.update({
           id: BasestationId
-        }, Basestation);
+        }, basestation).fetch();
   
         if (updatedBasestation)
           return updatedBasestation;
@@ -219,12 +227,12 @@ module.exports = {
       }
   
       let BasestationId = req.param('id');
-  
+      let queryObject = {
+        where: {id: BasestationId , status_id :{'!=': Status.DELETED} }
+      };
       const deleteBasestation = async() => {
   
-        const checkBasestation = await Basestation.count({
-          id: BasestationId
-        });
+        const checkBasestation = await Basestation.count(queryObject);
   
         if (checkBasestation < 1) {
           return new CustomError('Invalid Basestation Id', {
@@ -237,7 +245,7 @@ module.exports = {
           id: BasestationId
         }, {
           status_id: Status.DELETED
-        });
+        }).fetch();
   
         if (deletedBasestation)
           return deletedBasestation;

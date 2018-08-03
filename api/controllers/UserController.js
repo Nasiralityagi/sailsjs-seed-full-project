@@ -13,22 +13,24 @@ module.exports = {
     if (!req.param('first_name') || !_.isString(req.param('first_name'))) {
       return res.badRequest("first_name required");
     }
-
-    //make sure lastName is provided
     if (!req.param('last_name') || !_.isString(req.param('last_name'))) {
 
       return res.badRequest("last_name required");
     }
-    // console.log(!_.isNumber(req.param('role_type')) + ' value : '+ req.param('role_type'));
-    if (!_.isNumber(req.param('role_type'))) {
+    // console.log(!_.isString(req.param('username')) + ' value : '+ req.param('username'));
+    if (!_.isString(req.param('username'))) {
 
-      return res.badRequest("role_type required");
+      return res.badRequest("username required");
     }
 
     //make sure email is provided
     if (!req.param('mobile') || !_.isString(req.param('mobile'))) {
 
       return res.badRequest("mobile number required");
+    }
+    if (!req.param('role_id') || !_.isNumber(req.param('role_id'))) {
+
+      return res.badRequest("role_id is required");
     }
 
     if (req.param('password')) {
@@ -58,9 +60,12 @@ module.exports = {
         'first_name': req.param('first_name'),
         'last_name': req.param('last_name'),
         'mobile': req.param('mobile'),
+        'email': req.param('email'),
+        'job_title': req.param('job_title'),
         'password': encryptedPassword,
         'status_id': Status.ACTIVE,
-        'role_type': req.param('role_type')        
+        'username': req.param('username'),
+        'role': req.param('role_id')        
       }).fetch();
      
       if (newUser)
@@ -80,11 +85,11 @@ module.exports = {
           page: 1,
           per_page: 20,
           sort_dir: 'ASC',
-          sort: 'name',
+          sort: 'first_name',
           query: ''
         });
   
-      var sortable = ['name'];
+      var sortable = ['first_name'];
   
       var filters = params.filters;
   
@@ -114,15 +119,16 @@ module.exports = {
         }
       }
       let queryObject = {
-        where: {}
+        where: { status_id :{'!=': Status.DELETED} , role: req.param('role_id') },
+        // // limit: parseInt(params.per_page),
+        sort: '',
       };
   
       queryObject.where.or = [{
-        'like': {
-          'name': '%' + params.query + '%'
+        'first_name': {
+          'like': '%' + params.query + '%'
         }
       }];
-  
   
       if (params.sort && _.indexOf(sortable, params.sort) > -1) {
         queryObject.sort = params.sort + ' ' + params.sort_dir;
@@ -130,13 +136,13 @@ module.exports = {
   
       const getUsers = async() => {
   
-        const user_count = await User.count();
+        const user_count = await User.count({ where: { status_id :{'!=': Status.DELETED} , role: req.param('role_id')}});
         if (!user_count){
           return new CustomError('user not found', {
             status: 403
           });
         }
-        let users = await User.find(queryObject)
+        let users = await User.find(queryObject).populate('role');
         if (!users){
           return new CustomError('user not found', {
             status: 403
@@ -159,12 +165,13 @@ module.exports = {
 
       if (!(req.param('id')) || isNaN(req.param('id')))
         return res.badRequest('Not a valid request');
-      let userId = req.param('id')
-  
+      let userId = req.param('id');
+
+      let queryObject = {
+        where: {id: userId , status_id :{'!=': Status.DELETED} }
+      };
       const getUser = async() => {
-        let user = await User.findOne({
-          id: userId
-        });
+        let user = await User.findOne(queryObject).populate('role');
   
         if (user)
           return user;
@@ -185,17 +192,28 @@ module.exports = {
     },
     login: async function (req, res) {
 
-      var userRecord = await User.findOne({
-        mobile: req.body.mobile,
-      });
+      if (!req.param('mobile') || !_.isString(req.param('mobile'))) {
+
+        return res.badRequest("mobile number required");
+      }
+      if (!req.param('password') || !_.isString(req.param('password'))) {
+          return res.badRequest("password is required");
+
+      }
+  
+      let queryObject = {
+        where: {mobile: req.body.mobile , status_id :{'!=': Status.DELETED} }
+      };
+      var userRecord = await User.findOne(queryObject).populate('role');
       
-      // If there was no matching user, respond thru the "badCombo" exit.
       if(!userRecord) {
           return res.json({error : 'User not found'})
       }
+     
 
       const process = async()=>{
-          var fnResult = await bbService.checkPassword(req.body.password, userRecord.password);
+        
+          var fnResult = await util.isMatchedPasswordAsync(req.param('password'), userRecord.password);
           if(!fnResult)
           {
              return {error: 'error'};
@@ -207,7 +225,7 @@ module.exports = {
               return{
                   user:userRecord,
                   token: jwToken.issue({
-                      user: userRecord.id
+                      user: userRecord
                     }, '1d') //generate the token and send it in the response
               };
           }
@@ -216,18 +234,19 @@ module.exports = {
       .catch(err=>util.errorResponse(err,res));
 
     },
+    logout: function(req , res){
+      req.token = '';
+      res.status(200).json({msg: 'logout'})
+    },
     update: function (req, res) {
-      //make sure jobBoard id is provided
       if (!req.param('id') || isNaN(req.param('id'))) {
         return res.badRequest("Id is required");
       }
+      let password = util.string.random.number(11);
       let userId = req.param('id');
-  
       const updateUser = async() => {
-  
-        const oldUser = await User.count({
-          id: userId
-        });
+        
+        const oldUser = await User.count({id: userId});
   
         if (oldUser < 1) {
           return new CustomError('Invalid User  Id', {
@@ -236,24 +255,55 @@ module.exports = {
         }
   
         let user = {};
-  
+      
+        if (req.param('username') != undefined && _.isString(req.param('username'))) {
+          user.username = req.param('username');
+        }
+        if (req.param('title') != undefined && _.isString(req.param('title'))) {
+          user.title = req.param('title');
+        }
         if (req.param('first_name') != undefined && _.isString(req.param('first_name'))) {
           user.first_name = req.param('first_name');
         }
-        if (req.param('email') != undefined && _.isNumber(req.param('email'))) {
+        if (req.param('last_name') != undefined && _.isString(req.param('last_name'))) {
+          user.last_name = req.param('last_name');
+        }
+        if (req.param('email') != undefined && _.isString(req.param('email'))) {
           user.email = req.param('email');
+        }
+        if (req.param('email_signature') != undefined && _.isString(req.param('email_signature'))) {
+          user.email_signature = req.param('email_signature');
         }
         if (req.param('mobile') != undefined && _.isString(req.param('mobile'))) {
           user.mobile = req.param('mobile');
         }
-        if (req.param('status_id') != undefined && _.isString(req.param('status_id'))) {
+        if (req.param('image') != undefined && _.isString(req.param('image'))) {
+          user.image = req.param('image');
+        }
+        if (req.param('job_title') != undefined && _.isString(req.param('job_title'))) {
+          user.job_title = req.param('job_title');
+        }
+        if (req.param('active') != undefined && _.isNumber(req.param('active'))) {
+          user.active = req.param('active');
+        }
+        if (req.param('is_admin') != undefined && _.isBoolean(req.param('is_admin'))) {
+          user.is_admin = req.param('is_admin');
+        }
+        if (req.param('password') != undefined && _.isString(req.param('password'))) {
+          password = req.param('password');
+          let encryptedPassword = await util.getEncryptedPasswordAsync(password);
+          user.password = encryptedPassword;
+        }
+        if (req.param('status_id') != undefined && _.isNumber(req.param('status_id'))) {
           user.status_id = req.param('status_id');
         }
-  
-  
+        if (req.param('role_id') != undefined && _.isNumber(req.param('role_id'))) {
+          user.role = req.param('role_id');
+        }
+       
         const updatedUser = await User.update({
           id: userId
-        }, user);
+        }, user).fetch();;
   
         if (updatedUser)
           return updatedUser;
@@ -269,19 +319,18 @@ module.exports = {
   
     },
     delete: function (req, res) {
-      //make sure jobBoard id is provided
       if (!req.param('id') || isNaN(req.param('id'))) {
         return res.badRequest("Id is required");
       }
   
       let userId = req.param('id');
-  
+      let queryObject = {
+        where: {id: userId , status_id :{'!=': Status.DELETED} }
+      };
       const deleteUser = async() => {
-  
-        const checkUser = await User.count({
-          id: userId
-        });
-  
+        
+        const checkUser = await User.count(queryObject);
+        
         if (checkUser < 1) {
           return new CustomError('Invalid User Id', {
             status: 403
@@ -293,7 +342,7 @@ module.exports = {
           id: userId
         }, {
           status_id: Status.DELETED
-        });
+        }).fetch();
   
         if (deletedUser)
           return deletedUser;

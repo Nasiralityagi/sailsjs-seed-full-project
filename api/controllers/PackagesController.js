@@ -20,7 +20,8 @@ module.exports = {
         'package_name': req.param('package_name'),
         'bandwidth': req.param('bandwidth'),
         'data_limit': req.param('data_limit'),
-        'status_id': Status.ACTIVE,     
+        'cost_price': req.param('cost_price'),
+        'status_id': Status.ACTIVE,
       }).fetch();
      
       if (newPackage)
@@ -74,8 +75,8 @@ module.exports = {
         }
       }
       let queryObject = {
-        where: {},
-        limit: parseInt(params.per_page),
+        where: {status_id :{'!=': Status.DELETED} },
+        // limit: parseInt(params.per_page),
         sort: '',
       };
   
@@ -92,7 +93,7 @@ module.exports = {
   
       const getPackages = async() => {
   
-        const packages_count = await Packages.count();
+        const packages_count = await Packages.count({ where: {status_id :{'!=': Status.DELETED} }});
         if (!packages_count){
           return new CustomError('package not found', {
             status: 403
@@ -122,16 +123,16 @@ module.exports = {
       if (!(req.param('id')) || isNaN(req.param('id')))
         return res.badRequest('Not a valid request');
       let packagesId = req.param('id')
-  
+      let queryObject = {
+        where: {id: packagesId , status_id :{'!=': Status.DELETED} }
+      };
       const getPackage = async() => {
-        let packages = await Packages.findOne({
-          id: packagesId
-        });
+        let packages = await Packages.findOne(queryObject);
   
         if (packages)
           return packages;
         else
-          return new CustomError('Packages not found', {
+          return new CustomError('Package not found', {
             status: 403
           });
   
@@ -163,16 +164,28 @@ module.exports = {
           });
         }
   
-        let Packages = {};
+        let packages = {};
   
         if (req.param('package_name') != undefined && _.isString(req.param('package_name'))) {
-          Packages.package_name = req.param('package_name');
+          packages.package_name = req.param('package_name');
+        }
+        if (req.param('bandwidth') != undefined && _.isString(req.param('bandwidth'))) {
+          packages.bandwidth = req.param('bandwidth');
+        }
+        if (req.param('data_limit') != undefined && _.isString(req.param('data_limit'))) {
+          packages.data_limit = req.param('data_limit');
+        }
+        if (req.param('cost_price') != undefined && _.isNumber(req.param('cost_price'))) {
+          packages.cost_price = req.param('cost_price');
+        }
+        if (req.param('status_id') != undefined && _.isNumber(req.param('status_id'))) {
+          packages.status_id = req.param('status_id');
         }
   
   
         const updatedPackage = await Packages.update({
           id: packagesId
-        }, Packages);
+        }, packages).fetch();
   
         if (updatedPackage)
           return updatedPackage;
@@ -188,32 +201,30 @@ module.exports = {
   
     },
     delete: function (req, res) {
-      //make sure jobBoard id is provided
       if (!req.param('id') || isNaN(req.param('id'))) {
         return res.badRequest("Id is required");
       }
   
       let packagesId = req.param('id');
-  
+      let queryObject = {
+        where: {id: packagesId , status_id :{'!=': Status.DELETED} }
+      };
       const deletePackage = async() => {
-  
-        const checkPackage = await Packages.count({
-          id: packagesId
-        });
-  
+        
+        const checkPackage = await Packages.count(queryObject);
+        
         if (checkPackage < 1) {
-          return new CustomError('Invalid Packages Id', {
+          return new CustomError('Invalid Package Id', {
             status: 403
           });
         }
   
   
-        const deletedPackage = await Packages.update({
-          id: packagesId
-        }, {
-          status_id: Status.DELETED
-        });
-  
+        const deletedPackage = await Packages.update({ id: packagesId })
+          .set({ status_id: Status.DELETED }).fetch();
+        // , {
+        //   status_id: Status.DELETED
+        // });
         if (deletedPackage)
           return deletedPackage;
         return new CustomError('Some error occurred. Please contact development team for help.', {

@@ -17,42 +17,23 @@ module.exports = {
      ***************************************************************************/
 
 
-    // datastore: {
-    //     mysqlServer: {
-    //         adapter: 'sails-mysql',
-    //         // user: 'sails-no-del',   // this mysql user doesn't have any DELETE permission
-    //         user: 'root',
-    //         password: '',
-    //         database: 'linkerbits_alpha'
-    //         //socketPath : '/tmp/mysql.sock'
-    //     },
+    
+    // host:'139.99.46.84',
+    // host:'localhost',
+    host:'192.168.31.92',
+    datastores: {
+        default: {
+          // No need to set `adapter` again, because we already configured it in `config/datastores.js`.
+          url: 'mysql://root:@localhost:3306/linkerbits_alpha'
+        //   url: 'mysql://linker:tiger@localhost:3306/linkerbits_alpha'
+        }
+      },
 
-    //     mySqlSafe: {
-    //       adapter: 'sails-mysql',
-    //       user: 'sails-no-del',   // this mysql user doesn't have any DELETE permission
-    //       // user: 'root',
-    //       password: '',
-    //       database: 'linkerbits_alpha'
-    //       //socketPath : '/tmp/mysql.sock'
-    //     },
-
-    //   /**
-    //    * use this one when you modify a table and want to generate new mysql table structure for that.
-    //    */
-    // //   onlyForStructure: {
-    // //       adapter: 'sails-mysql',
-    // //       user: 'root',
-    // //       password: '',
-    // //       database: 'linkerbits_api_tmp'
-    // //     }
-    // },
-    host:'localhost',
-
-
-    // datastore: {
-    //     connection: 'mysqlServer',
-    //     migrate: 'safe'
-    // },
+      models:{
+        // migrate: 'safe',
+        migrate: 'alter',
+      },
+    
 
     log: {
         //level: 'silly'
@@ -66,8 +47,9 @@ module.exports = {
 // pwd: beta2017, uName: beta.test
     defConfig: {
         account:{},
-        baseUrl: 'https://ee355a14.ngrok.io/',
-        appUrl: 'http://localhost:1337/',        
+        // baseUrl: 'https://ee355a14.ngrok.io/',
+        // appUrl: 'http://localhost:1337/', 
+        appUrl: 'http://192.168.31.92:1337/',        
         mailer: '',
         mailinPort: 2526,
 

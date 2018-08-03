@@ -13,11 +13,9 @@ module.exports = {
       return res.badRequest("file_name required");
     }
 
-    //make sure lastName is provided
     if (!req.param('file_path') || !_.isString(req.param('file_path'))) {
       return res.badRequest("file_path required");
     }
-    console.log(req.param('customer_id'));
     const process = async () => {
 
       const newDocuments = await Documents.create({
@@ -79,8 +77,8 @@ module.exports = {
       }
     
       let queryObject = {
-        where: {},
-        limit: parseInt(params.per_page),
+        where: {status_id :{'!=': Status.DELETED} },
+        // limit: parseInt(params.per_page),
         sort: '',
       };
       if (params.sort && _.indexOf(sortable, params.sort) > -1) {
@@ -97,15 +95,15 @@ module.exports = {
   
       const getDocuments = async() => {
   
-        const Documents_count = await Documents.count();
+        const Documents_count = await Documents.count({ where: {status_id :{'!=': Status.DELETED} }});
         if (!Documents_count){
-          return new CustomError('document not found', {
+          return new CustomError('documents not found', {
             status: 403
           });
         }
         let documents = await Documents.find(queryObject).populate('customers');;
         if (!documents){
-          return new CustomError('document not found', {
+          return new CustomError('documents not found', {
             status: 403
           });
         }
@@ -127,11 +125,11 @@ module.exports = {
       if (!(req.param('id')) || isNaN(req.param('id')))
         return res.badRequest('Not a valid request');
       let DocumentsId = req.param('id')
-      console.log(DocumentsId);
+      let queryObject = {
+        where: {id: DocumentsId , status_id :{'!=': Status.DELETED} }
+      };
       const getDocuments = async() => {
-        let documents = await Documents.findOne({
-          id: DocumentsId
-        }).populate('customers');
+        let documents = await Documents.findOne(queryObject).populate('customers');
   
         if (documents)
           return documents;
@@ -151,7 +149,6 @@ module.exports = {
   
     },
     update: function (req, res) {
-      //make sure jobBoard id is provided
       if (!req.param('id') || isNaN(req.param('id'))) {
         return res.badRequest("Id is required");
       }
@@ -169,19 +166,25 @@ module.exports = {
           });
         }
   
-        let Documents = {};
+        let documents = {};
   
         if (req.param('file_name') != undefined && _.isString(req.param('file_name'))) {
-          Documents.file_name = req.param('file_name');
+          documents.file_name = req.param('file_name');
         }
-        if (req.param('file_path') != undefined && _.isNumber(req.param('file_path'))) {
-          Documents.file_path = req.param('file_path');
+        if (req.param('file_path') != undefined && _.isString(req.param('file_path'))) {
+          documents.file_path = req.param('file_path');
+        }
+        if (req.param('customer_id') != undefined && _.isNumber(req.param('customer_id'))) {
+          documents.customers = req.param('customer_id');
+        }
+        if (req.param('status_id') != undefined && _.isNumber(req.param('status_id'))) {
+          documents.status_id = req.param('status_id');
         }
   
   
         const updatedDocuments = await Documents.update({
           id: DocumentsId
-        }, Documents);
+        }, documents).fetch();
   
         if (updatedDocuments)
           return updatedDocuments;
@@ -197,21 +200,20 @@ module.exports = {
   
     },
     delete: function (req, res) {
-      //make sure jobBoard id is provided
       if (!req.param('id') || isNaN(req.param('id'))) {
         return res.badRequest("Id is required");
       }
   
       let DocumentsId = req.param('id');
-  
+      let queryObject = {
+        where: {id: DocumentsId , status_id :{'!=': Status.DELETED} }
+      };
       const deleteDocuments = async() => {
   
-        const checkDocuments = await Documents.count({
-          id: DocumentsId
-        });
+        const checkDocuments = await Documents.count(queryObject);
   
         if (checkDocuments < 1) {
-          return new CustomError('Invalid Documents Id', {
+          return new CustomError('Invalid Document Id', {
             status: 403
           });
         }
@@ -221,7 +223,7 @@ module.exports = {
           id: DocumentsId
         }, {
           status_id: Status.DELETED
-        });
+        }).fetch();
   
         if (deletedDocuments)
           return deletedDocuments;

@@ -46,6 +46,8 @@
 ################################################
 
 config/local.js
+config/env/development.js
+assets/images
 
 
 ################################################
@@ -130,3 +132,4 @@ lib-cov
 *.out
 *.pid
 
+/config/env/development.js

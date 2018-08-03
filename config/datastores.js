@@ -52,7 +52,7 @@ module.exports.datastores = {
     // user: 'root',
     //         password: '',
     //         database: 'linkerbits_alpha'
-    url: 'mysql://root:@localhost:3306/linkerbits_alpha',
+    // url: 'mysql://linker:tiger@localhost:3306/linkerbits_alpha',
 
   },
 

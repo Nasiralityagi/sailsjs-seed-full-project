@@ -53,7 +53,7 @@ module.exports.models = {
   *                                                                          *
   ***************************************************************************/
 
-  migrate: 'alter',
+  // migrate: 'safe',
 
 
   /***************************************************************************
@@ -84,7 +84,10 @@ module.exports.models = {
     // https://sailsjs.com/docs/tutorials/using-mongo-db
     //--------------------------------------------------------------------------
   },
-
+  // customToJSON: function() {
+  //   // Return a shallow copy of this record with the password and ssn removed.
+  //   return _.omit(this, [ 'password'])
+  // },
 
   /******************************************************************************
   *                                                                             *

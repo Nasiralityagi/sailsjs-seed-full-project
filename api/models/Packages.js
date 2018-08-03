@@ -16,6 +16,11 @@ module.exports = {
     'bandwidth': {
       'type': 'string',
     },
+    'cost_price': {
+      'type': 'ref',
+      'columnType': "double"
+
+    },
     'data_limit': {
       'type': 'string',
     },
@@ -24,8 +29,12 @@ module.exports = {
       // 'required': true,
       'defaultsTo': 1
     },
-    connection: {
-      collection: 'connection',
+    userconnection: {
+      collection: 'userconnection',
+      via: 'packages'
+    },
+    dealerPackages: {
+      collection: 'dealerpackages',
       via: 'packages'
     },
   },

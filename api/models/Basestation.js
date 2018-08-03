@@ -19,7 +19,7 @@ module.exports = {
     'lat': {
       'type': 'string',
     },
-    'lag': {
+    'lng': {
       'type': 'string',
     },
     'bandwidth': {
@@ -36,8 +36,8 @@ module.exports = {
       'defaultsTo': 1
     },
     // association
-    connection: {
-      collection:'connection',
+    userconnection: {
+      collection:'userconnection',
       via: 'basestation'
     }
   },
