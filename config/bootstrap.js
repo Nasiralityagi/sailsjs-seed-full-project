@@ -32,24 +32,22 @@ module.exports.bootstrap = async function (done) {
 
   //addAAccount 
   // start.addAccount();
+
+ // testing new stuff
+  var io = require('socket.io')(sails.hooks.http.server);
+  io.on('connection', function(socket){
+    console.log('a user connected');
+  });
   
   // Don't forget to trigger `done()` when this bootstrap function's logic is finished.
   // (otherwise your server will never lift, since it's waiting on the bootstrap)
-  let queryObject = {
-    where: { status_id: { '!=': Status.DELETED } },
-    sort: 'id ASC',
-  };
-  const crons = await Notify.find(queryObject);
-
-  if (!crons) {
-    return done();
-  }
-  //console.log(corns);
-  for (const element of crons) {
-    util.cronStart(element.id, element.cron_job_time, element.expires_in);
-  };
-
   
+  //Start crons jobs for notification.
+  start.startCronJobs();
+
+
+  // Check connection if there are in review change there status
+  start.connectionCheck();
 
   util.customerDelete();
 

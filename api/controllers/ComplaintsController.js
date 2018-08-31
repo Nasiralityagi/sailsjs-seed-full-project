@@ -29,6 +29,7 @@ module.exports = {
                 'assigned_to': req.param('assigned_to'),
                 'dealer': req.param('dealer_id'),
                 'status_id': Status.ACTIVE,
+                'createdBy': req.token.user.id, // current logged in user id
             }).fetch();
 
             if (newComplaints)
@@ -102,14 +103,14 @@ module.exports = {
         const getComplaints = async () => {
 
             const Complaints_count = await Complaints.count({ where: { status_id: { '!=': Status.DELETED } } });
-            if (!Complaints_count) {
-                return new CustomError('complaints not found', {
+            if (Complaints_count < 1) {
+                throw new CustomError('complaints not found', {
                     status: 403
                 });
             }
             let complaints = await Complaints.find(queryObject).populate('customers');;
-            if (!complaints) {
-                return new CustomError('complaints not found', {
+            if (complaints.length < 1) {
+                throw new CustomError('complaints not found', {
                     status: 403
                 });
             }
@@ -140,11 +141,11 @@ module.exports = {
             if (complaints)
                 return complaints;
             else
-                return new CustomError('Complaints not found', {
+                throw new CustomError('Complaints not found', {
                     status: 403
                 });
 
-            return new CustomError('Some error occurred. Please contact development team for help.', {
+            throw new CustomError('Some error occurred. Please contact development team for help.', {
                 status: 403
             });
         }
@@ -167,7 +168,7 @@ module.exports = {
             });
 
             if (oldComplaints < 1) {
-                return new CustomError('Invalid Complaints  Id', {
+                throw new CustomError('Invalid Complaints  Id', {
                     status: 403
                 });
             }
@@ -203,7 +204,7 @@ module.exports = {
 
             if (updatedComplaints)
                 return updatedComplaints;
-            return new CustomError('Some error occurred. Please contact development team for help.', {
+            throw new CustomError('Some error occurred. Please contact development team for help.', {
                 status: 403
             });
 
@@ -228,7 +229,7 @@ module.exports = {
             const checkComplaints = await Complaints.count(queryObject);
 
             if (checkComplaints < 1) {
-                return new CustomError('Invalid complaints Id', {
+                throw new CustomError('Invalid complaints Id', {
                     status: 403
                 });
             }
@@ -242,7 +243,7 @@ module.exports = {
 
             if (deletedComplaints)
                 return deletedComplaints;
-            return new CustomError('Some error occurred. Please contact development team for help.', {
+            throw new CustomError('Some error occurred. Please contact development team for help.', {
                 status: 403
             });
 

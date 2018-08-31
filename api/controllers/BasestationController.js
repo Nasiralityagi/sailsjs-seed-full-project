@@ -19,12 +19,11 @@ module.exports = {
       return res.badRequest("address required");
     }
     // console.log(!_.isNumber(req.param('role_type')) + ' value : '+ req.param('role_type'));
-    if (!req.param('bandwidth')) {
+    if (!req.param('bandwidth') || !_.isNumber(req.param('bandwidth'))) {
 
       return res.badRequest("bandwidth required");
     }
-    if (!req.param('max_connection') || !_.isString(req.param('max_connection'))) {
-
+    if (!req.param('max_connection') || !_.isNumber(req.param('max_connection'))) {
       return res.badRequest("max_connection required");
     }
     const process = async () => {
@@ -33,10 +32,11 @@ module.exports = {
         'name': req.param('name'),
         'address': req.param('address'),
         'lat': req.param('lat'),
-        'lng': req.param('lng'),
+        'long': req.param('long'),
         'status_id': Status.ACTIVE,
         'bandwidth': req.param('bandwidth'),
-        'max_connection': req.param('max_connection')  
+        'max_connection': req.param('max_connection'),
+        'createdBy': req.token.user.id, // current logged in user id
       }).fetch();
      
       if (newBasestation)
@@ -109,14 +109,14 @@ module.exports = {
       const getBasestations = async() => {
   
         const Basestation_count = await Basestation.count({where: {status_id :{'!=': Status.DELETED} }});
-        if (!Basestation_count){
-            return new CustomError('Basestation not found', {
+        if (Basestation_count < 1){
+            throw new CustomError('Basestation not found', {
               status: 403
             });
         }
         let basestation = await Basestation.find(queryObject);
         if (!basestation){
-          return new CustomError('Basestation not found', {
+          throw new CustomError('Basestation not found', {
             status: 403
           });
       }
@@ -147,11 +147,11 @@ module.exports = {
         if (basestation)
           return basestation;
         else
-          return new CustomError('Basestation not found', {
+          throw new CustomError('Basestation not found', {
             status: 403
           });
   
-        return new CustomError('Some error occurred. Please contact development team for help.', {
+        throw new CustomError('Some error occurred. Please contact development team for help.', {
           status: 403
         });
       }
@@ -175,7 +175,7 @@ module.exports = {
         });
   
         if (oldBasestation < 1) {
-          return new CustomError('Invalid Basestation  Id', {
+          throw new CustomError('Invalid Basestation  Id', {
             status: 403
           });
         }
@@ -194,8 +194,8 @@ module.exports = {
         if (req.param('lat') != undefined && _.isString(req.param('lat'))) {
           basestation.lat = req.param('lat');
         }
-        if (req.param('lng') != undefined && _.isString(req.param('lng'))) {
-          basestation.lng = req.param('lng');
+        if (req.param('long') != undefined && _.isString(req.param('long'))) {
+          basestation.long = req.param('long');
         }
         if (req.param('max_connection') != undefined && _.isString(req.param('max_connection'))) {
           basestation.max_connection = req.param('max_connection');
@@ -210,7 +210,7 @@ module.exports = {
   
         if (updatedBasestation)
           return updatedBasestation;
-        return new CustomError('Some error occurred. Please contact development team for help.', {
+        throw new CustomError('Some error occurred. Please contact development team for help.', {
           status: 403
         });
   
@@ -235,7 +235,7 @@ module.exports = {
         const checkBasestation = await Basestation.count(queryObject);
   
         if (checkBasestation < 1) {
-          return new CustomError('Invalid Basestation Id', {
+          throw new CustomError('Invalid Basestation Id', {
             status: 403
           });
         }
@@ -249,7 +249,7 @@ module.exports = {
   
         if (deletedBasestation)
           return deletedBasestation;
-        return new CustomError('Some error occurred. Please contact development team for help.', {
+        throw new CustomError('Some error occurred. Please contact development team for help.', {
           status: 403
         });
   

@@ -4,8 +4,7 @@
  * @description :: Server-side actions for handling incoming requests.
  * @help        :: See https://sailsjs.com/docs/concepts/actions
  */
-var CronJob = require('cron').CronJob;
-var jobs = [];
+
 module.exports = {
 
     create: function (req, res) {
@@ -20,11 +19,11 @@ module.exports = {
         let cronTime = req.param('cron_job_time').split(':');
         let hour;
         let mintes;
-        if(cronTime.length == 2){
-           hour = cronTime[0];
-           mintes = cronTime[1];
+        if (cronTime.length == 2) {
+            hour = cronTime[0];
+            mintes = cronTime[1];
         }
-        let cronJob = mintes + ' ' + hour + ' * * *' 
+        let cronJob = mintes + ' ' + hour + ' * * *';
         // return res.json({hour , mintes});
         const process = async () => {
 
@@ -32,20 +31,11 @@ module.exports = {
                 'expires_in': req.param('expires_in'),
                 'cron_job_time': cronJob,
                 'status_id': Status.ACTIVE,
+                'createdBy': req.token.user.id, // current logged in user id
             }).fetch();
 
             if (newNotify) {
-                // jobs[newNotify.id]= new CronJob({
-                //     cronTime:newNotify.cron_job_time, //'* * * * *',
-                //     onTick: function() {
-                //       console.log('job '+ newNotify.id +' ticked ' + newNotify.expires_in);
-                //     },
-                //     start: true,
-                //     timeZone: 'America/Los_Angeles'
-                //   });
-                //   jobs[newNotify.id].start();
                 util.cronStart(newNotify.id, newNotify.cron_job_time, newNotify.expires_in);
-
                 return newNotify;
             }
             throw new CustomError('Some error occurred. Please contact support team for help. ');
@@ -62,11 +52,11 @@ module.exports = {
                 page: 1,
                 per_page: 20,
                 sort_dir: 'ASC',
-                sort: 'expires_in',
+                sort: 'id',
                 query: ''
             });
 
-        var sortable = ['expires_in'];
+        var sortable = ['id'];
 
         var filters = params.filters;
 
@@ -105,9 +95,9 @@ module.exports = {
             queryObject.sort = params.sort + ' ' + params.sort_dir;
         }
         queryObject.where.or = [{
-            'expires_in': {
-                'like': '%' + params.query + '%'
-            }
+            // 'expires_in': {
+            //     'like': '%' + params.query + '%'
+            // }
         }];
 
 
@@ -116,22 +106,35 @@ module.exports = {
         const getNotify = async () => {
 
             const Notify_count = await Notify.count({ where: { status_id: { '!=': Status.DELETED } } });
-            if (!Notify_count) {
-                return new CustomError('document not found', {
+            if (Notify_count < 1) {
+                throw new CustomError('notification not found', {
                     status: 403
                 });
             }
             let notify = await Notify.find(queryObject);
-            if (!notify) {
-                return new CustomError('document not found', {
+            if (notify.length < 1) {
+                throw new CustomError('notification not found', {
                     status: 403
                 });
+            }
+            for (let key in notify) {
+                let jca = notify[key].cron_job_time.split(' ');
+                // console.log(jca);
+                if (jca[2] + jca[3] + jca[4] == '***') {
+                    notify[key].cron_job_time = 'Daily at : ' + jca[1] + ':' + jca[0];
+                }
+                else if (jca[2] + jca[3] == '**' && jca[4] != '*') {
+                    var days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                    var dayName = days[parseInt(jca[4])];
+                    notify[key].cron_job_time = 'Weekly on ' + dayName + ' at : ' + jca[1] + ':' + jca[0];
+                }
+
             }
             const responseObject = {
                 notify: notify,
                 totalCount: Notify_count,
-                perPage: params.per_page,
-                currentPage: params.page
+                // perPage: params.per_page,
+                // currentPage: params.page
             };
             return responseObject;
         }
@@ -148,18 +151,18 @@ module.exports = {
         let queryObject = {
             where: { id: NotifyId, status_id: { '!=': Status.DELETED } }
         };
-       
+
         const getNotify = async () => {
             let notify = await Notify.findOne(queryObject);
 
             if (notify)
                 return notify;
             else
-                return new CustomError('Notify not found', {
+                throw new CustomError('Notify not found', {
                     status: 403
                 });
 
-            return new CustomError('Some error occurred. Please contact development team for help.', {
+            throw new CustomError('Some error occurred. Please contact development team for help.', {
                 status: 403
             });
         }
@@ -169,7 +172,7 @@ module.exports = {
             .catch(err => util.errorResponse(err, res));
 
     },
-    
+
     update: function (req, res) {
         if (!req.param('id') || isNaN(req.param('id'))) {
             return res.badRequest("Id is required");
@@ -183,7 +186,7 @@ module.exports = {
             });
 
             if (oldNotify < 1) {
-                return new CustomError('Invalid Notify  Id', {
+                throw new CustomError('Invalid Notify  Id', {
                     status: 403
                 });
             }
@@ -207,7 +210,7 @@ module.exports = {
 
             if (updatedNotify)
                 return updatedNotify;
-            return new CustomError('Some error occurred. Please contact development team for help.', {
+            throw new CustomError('Some error occurred. Please contact development team for help.', {
                 status: 403
             });
 
@@ -232,7 +235,7 @@ module.exports = {
             const checkNotify = await Notify.count(queryObject);
 
             if (checkNotify < 1) {
-                return new CustomError('Invalid Document Id', {
+                throw new CustomError('Invalid Document Id', {
                     status: 403
                 });
             }
@@ -246,7 +249,7 @@ module.exports = {
 
             if (deletedNotify)
                 return deletedNotify;
-            return new CustomError('Some error occurred. Please contact development team for help.', {
+            throw new CustomError('Some error occurred. Please contact development team for help.', {
                 status: 403
             });
 
@@ -270,7 +273,7 @@ module.exports = {
             const checkNotify = await Notify.count(queryObject);
 
             if (checkNotify < 1) {
-                return new CustomError('Invalid Id', {
+                throw new CustomError('Invalid Id', {
                     status: 403
                 });
             }

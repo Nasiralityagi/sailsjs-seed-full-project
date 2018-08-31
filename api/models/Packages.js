@@ -14,7 +14,7 @@ module.exports = {
       'required': true,
     },
     'bandwidth': {
-      'type': 'string',
+      'type': 'number',
     },
     'cost_price': {
       'type': 'ref',
@@ -22,15 +22,15 @@ module.exports = {
 
     },
     'data_limit': {
-      'type': 'string',
+      'type': 'number',
     },
     'status_id': {
       'type': 'number',
       // 'required': true,
       'defaultsTo': 1
     },
-    userconnection: {
-      collection: 'userconnection',
+    connection: {
+      collection: 'connection',
       via: 'packages'
     },
     dealerPackages: {

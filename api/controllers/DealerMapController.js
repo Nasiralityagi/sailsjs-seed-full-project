@@ -23,6 +23,7 @@ module.exports = {
           'coordinate': req.param('coordinates'),
           'dealer': req.param('dealer_id'),
           'status_id': Status.ACTIVE,
+          'createdBy': req.token.user.id, // current logged in user id
         }).fetch();
 
         if (newDealerMap)
@@ -96,15 +97,15 @@ module.exports = {
     const getDealerMap = async () => {
 
       const DealerMap_count = await DealerMap.count({ where: { status_id: { '!=': Status.DELETED } } });
-      if (!DealerMap_count) {
-        return new CustomError('dealerMap not found', {
+      if (DealerMap_count < 1) {
+        throw new CustomError('dealerMap not found', {
           status: 403
         });
       }
       // console.log(queryObject);
       let dealerMap = await DealerMap.find(queryObject).populate('dealer');;
-      if (!dealerMap) {
-        return new CustomError('dealerMap not found', {
+      if (dealerMap.length < 1) {
+        throw new CustomError('dealerMap not found', {
           status: 403
         });
       }
@@ -135,11 +136,11 @@ module.exports = {
       if (dealerMap)
         return dealerMap;
       else
-        return new CustomError('DealerMap not found', {
+        throw new CustomError('DealerMap not found', {
           status: 403
         });
 
-      return new CustomError('Some error occurred. Please contact development team for help.', {
+      throw new CustomError('Some error occurred. Please contact development team for help.', {
         status: 403
       });
     }
@@ -162,7 +163,7 @@ module.exports = {
       });
 
       if (oldDealerMap < 1) {
-        return new CustomError('Invalid DealerMap  Id', {
+        throw new CustomError('Invalid DealerMap  Id', {
           status: 403
         });
       }
@@ -186,7 +187,7 @@ module.exports = {
 
       if (updatedDealerMap)
         return updatedDealerMap;
-      return new CustomError('Some error occurred. Please contact development team for help.', {
+      throw new CustomError('Some error occurred. Please contact development team for help.', {
         status: 403
       });
 
@@ -211,7 +212,7 @@ module.exports = {
       const checkDealerMap = await DealerMap.count(queryObject);
 
       if (checkDealerMap < 1) {
-        return new CustomError('Invalid DealerMap Id', {
+        throw new CustomError('Invalid DealerMap Id', {
           status: 403
         });
       }
@@ -225,7 +226,7 @@ module.exports = {
 
       if (deletedDealerMap)
         return deletedDealerMap;
-      return new CustomError('Some error occurred. Please contact development team for help.', {
+      throw new CustomError('Some error occurred. Please contact development team for help.', {
         status: 403
       });
 
@@ -250,7 +251,7 @@ module.exports = {
 
       if (deletedDealerMap)
         return 'Deleted all data successfully';
-      return new CustomError('Some error occurred. Please contact development team for help.', {
+      throw new CustomError('Some error occurred. Please contact development team for help.', {
         status: 403
       });
 

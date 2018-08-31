@@ -7,43 +7,71 @@
 
 module.exports = {
 
+    
   attributes: {
 
     'address': {
       'type': 'string',
-      'required': true
+      // 'required': true
+      allowNull:true
+    },
+    'connection_price': {
+      'type': 'ref',
+      'columnType': 'double',
+      // allowNull:true
+    },
+    'doc_verified': {
+      'type': 'boolean',
+      defaultsTo: false
     },
     'router_of': {
-      'type': 'string',
-      'required': true
+      'type': 'number',
+      // 'required': true
+      allowNull:true,
     },
     'router_brand': {
       'type': 'string',
+      allowNull:true,
     },
     'router_model': {
         'type': 'string',
+        allowNull:true,
     },
     'router_price': {
-      'type': 'string',
+      'type': 'ref',
+      'columnType': 'double',
+      // allowNull:true
     },
     'drop_wire_of': {
-        'type': 'string',
-        'required': true,
+        'type': 'number',
+        // 'required': true,
+        allowNull:true,
     },
     'drop_wire_length': {
         'type': 'string',
+        allowNull:true,
     },
     'price_per_meter': {
-        'type': 'string',
+      'type': 'ref',
+      'columnType': 'double',
+      // allowNull:true,
     },       
     'is_wireless': {
         'type': 'boolean',
+        allowNull:true
     },
     'lat': {
       'type': 'string',
+      allowNull:true
     },
-    'lag': {
+    'long': {
       'type': 'string',
+      allowNull:true
+    },
+    'registration_date': {
+      'type': 'ref', 
+      'columnType': 'datetime',
+      // allowNull:true
     },
     'status_id': {
       'type': 'number',
@@ -59,14 +87,17 @@ module.exports = {
     basestation:{
       columnName: 'basestation_id',
       model:'basestation',
-      unique: true,
-      required : true,
+      // required : true,
     },
+   
     'packages': {
       'columnName': 'package_id',
       'model': 'packages',
-      'unique': true,
       'required' : true,
+    },
+    'new_package': {
+      'columnName': 'new_package_id',
+      'model': 'packages',
     },
     'salesman': {
       'columnName': 'salesman_id',
@@ -75,6 +106,20 @@ module.exports = {
     'dealer': {
       'columnName': 'dealer_id',
       'model': 'user',
+    },
+    'installed_by': {
+      'columnName': 'installed_by',
+      'model': 'user',
+    },
+    // Association
+    connRenewal: {
+      collection: 'connRenewal',
+      via: 'connection'
+    },
+    rejectdoc:{
+      collection:'rejectdoc',
+      via: 'connection'
+      // required : true,
     },
   },
 

@@ -20,7 +20,8 @@ module.exports = {
     
     // host:'139.99.46.84',
     // host:'localhost',
-    host:'192.168.31.92',
+    host:'192.168.31.93',
+    // host:'192.168.100.5',
     datastores: {
         default: {
           // No need to set `adapter` again, because we already configured it in `config/datastores.js`.
@@ -30,8 +31,8 @@ module.exports = {
       },
 
       models:{
-        // migrate: 'safe',
-        migrate: 'alter',
+        migrate: 'safe',
+        // migrate: 'alter',
       },
     
 
@@ -49,7 +50,7 @@ module.exports = {
         account:{},
         // baseUrl: 'https://ee355a14.ngrok.io/',
         // appUrl: 'http://localhost:1337/', 
-        appUrl: 'http://192.168.31.92:1337/',        
+        appUrl: 'http://192.168.31.93:1337/',        
         mailer: '',
         mailinPort: 2526,
 

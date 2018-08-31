@@ -19,11 +19,36 @@ module.exports.addRouts = function () {
 
                 }
                 last_index = str_url.lastIndexOf('/')
-                // console.log(last_index)
-                description = str_url.slice(1, last_index)
+                table_name = str_url.slice(1, last_index);
+                operation = str_url.slice(last_index+1 , str_url.length);
+                switch (operation) {
+                    case 'create':
+                        description = operation + ' ' + table_name;
+                        break;
+                    case 'findOne':
+                        description ='get one ' + table_name + ' by id';
+                        break;
+                    case 'find':
+                        description ='get all ' + table_name;
+                        break;
+                    case 'update':
+                        description ='update ' + table_name + ' by id';
+                        break;
+                    case 'delete':
+                        description ='delete ' + table_name + ' by id';
+                        break;
+                    case 'login':
+                        description = table_name + ' login by mobile and password';
+                        break;
+                    case 'logout':
+                        description =table_name + ' logout by id';
+                        break;
+                    default:
+                        break;
+                }
 
                 var newOrExistingRecord = await Routes.findOrCreate(
-                    { end_point: str_url, description: description, status_id: Status.ACTIVE, }
+                    { end_point: str_url,status_id: Status.ACTIVE, }
                     , { end_point: str_url, description: description, status_id: Status.ACTIVE }
                 );
                 if (newOrExistingRecord) {
@@ -32,7 +57,7 @@ module.exports.addRouts = function () {
 
                     var newrr = await RolesRoutes.findOrCreate(
                         { roles: 1, routes: newOrExistingRecord.id, status_id: Status.ACTIVE }
-                        , { roles: 1, routes: newOrExistingRecord.id, status_id: Status.ACTIVE }
+                        , { roles: 1, routes: newOrExistingRecord.id, description: description, status_id: Status.ACTIVE }
                     );
                     // console.log(newrr);
                 }
@@ -103,6 +128,7 @@ module.exports.addAccount = function () {
                 'account_number': account_number ? account_number.v : 0,
                 'is_group': is_group ? is_group.v : null,
                 'status_id': Status.ACTIVE,
+                'createdBy': req.token.user.id, // current logged in user id
             }).fetch();
 
             if (newAcount) {
@@ -110,7 +136,7 @@ module.exports.addAccount = function () {
                 if (pAccount) {
                     await Account.addToCollection(newAcount.id, 'parent', pAccount.id);
                 }
-                console.log(newAcount.id);
+                // console.log(newAcount.id);
             }
             // var desired_cell = worksheet['E22'];
             // var desired_value = (desired_cell ? desired_cell.v : undefined);
@@ -118,4 +144,45 @@ module.exports.addAccount = function () {
 
         // console.log(desired_value);
     })
-}
+},
+
+module.exports.connectionCheck = async function(){
+    const connection = await Connection.find({
+        where: {status_id: Status.IN_REVIEW}
+    });
+
+    for(let c of connection){
+        const account = await Account.find({where:{name : c.customers.username}}).limit(1);
+        if(account){
+            await Connection.update({
+                id: c.id
+              }, {
+                  status_id: Status.ACTIVE
+                });
+        }
+        else{
+            await Connection.update({
+                id: c.id
+              }, {
+                  status_id: Status.PENDING
+                });
+        }
+    }
+},
+
+module.exports.startCronJobs = async function(){
+    let queryObject = {
+        where: { status_id: { '!=': Status.DELETED } },
+        sort: 'id ASC',
+      };
+      const crons = await Notify.find(queryObject);
+    
+      if (crons) {
+        for (const element of crons) {
+            util.cronStart(element.id, element.cron_job_time, element.expires_in);
+          };
+      }
+      //console.log(corns);
+     
+    
+} 

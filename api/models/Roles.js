@@ -29,6 +29,10 @@ module.exports = {
       collection: 'user',
       via: 'role'
     },
+    rolepermissions: {
+      collection: 'rolepermissions',
+      via: 'roles'
+    },
     //  ╔═╗╦═╗╦╔╦╗╦╔╦╗╦╦  ╦╔═╗╔═╗
     //  ╠═╝╠╦╝║║║║║ ║ ║╚╗╔╝║╣ ╚═╗
     //  ╩  ╩╚═╩╩ ╩╩ ╩ ╩ ╚╝ ╚═╝╚═╝

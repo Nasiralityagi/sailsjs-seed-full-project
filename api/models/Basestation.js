@@ -19,16 +19,16 @@ module.exports = {
     'lat': {
       'type': 'string',
     },
-    'lng': {
+    'long': {
       'type': 'string',
     },
     'bandwidth': {
-      'type': 'string',
-      'required': true,
+      'type': 'number',
+      // 'required': true,
     },
     'max_connection': {
-      'type': 'string',
-      'required': true,
+      'type': 'number',
+      // 'required': true,
     },
     'status_id': {
       'type': 'number',
@@ -36,8 +36,8 @@ module.exports = {
       'defaultsTo': 1
     },
     // association
-    userconnection: {
-      collection:'userconnection',
+    connection: {
+      collection:'connection',
       via: 'basestation'
     }
   },

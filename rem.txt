@@ -1,0 +1,1 @@
+delete connection renewal data after deleting a connection.

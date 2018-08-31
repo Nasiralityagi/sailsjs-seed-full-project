@@ -8,26 +8,26 @@ module.exports = {
         let days = req.param('days');
         var today = new Date();
         var myToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
-        let date = moment(myToday).add(days, 'days').format("YYYY-MM-DD HH:mm:ss");
+        let dateStart = moment(myToday).add(days, 'days').format("YYYY-MM-DD HH:mm:ss");
+        let dateEnd = moment(myToday).add(days+1, 'days').format("YYYY-MM-DD HH:mm:ss");
         let queryObject;
         if (req.token.user.role.id == 2) {
-            let userconnection = await UserConnection.find(
+            let connection = await Connection.find(
                 {
                     where: { status_id: { '!=': Status.DELETED }, dealer: req.token.user.id },
                     select: ['id']
                 },
             );
             queryObject = {
-                where: { userconnection: userconnection.id, status_id: { '!=': Status.DELETED }, expiration_date: { 'like': '%' + date + '%' } },
+                where: { connection: connection.id, status_id: { '!=': Status.DELETED }, expiration_date: {'>=': dateStart, '<': dateEnd} },
             };
         }
         else {
             queryObject = {
-                where: { status_id: { '!=': Status.DELETED }, expiration_date: { 'like': '%' + date + '%' } },
+                where: { status_id: { '!=': Status.DELETED }, expiration_date: {'>=': dateStart, '<': dateEnd} },
             };
         }
         ConnRenewal.count(queryObject).exec(function countCB(err, found) {
-            // console.log(result);
             if (err) {
                 return res.json({ err: err });
             }
@@ -44,14 +44,14 @@ module.exports = {
         let date = moment(myToday).add(days, 'days').format("YYYY-MM-DD HH:mm:ss");
         let queryObject;
         if (req.token.user.role.id == 2) {
-            let userconnection = await UserConnection.find(
+            let connection = await Connection.find(
                 {
                     where: { status_id: { '!=': Status.DELETED }, dealer: req.token.user.id },
                     select: ['id']
                 },
             );
             queryObject = {
-                where: { userconnection: userconnection.id, status_id: { '!=': Status.DELETED }, expiration_date: { 'like': '%' + date + '%' } },
+                where: { connection: connection.id, status_id: { '!=': Status.DELETED }, expiration_date: { 'like': '%' + date + '%' } },
             };
         }
         else {
@@ -81,13 +81,13 @@ module.exports = {
     },
     totalCustomer: async function (req, res) {
         if (req.token.user.role.id == 2) {
-            let userconnection = await UserConnection.find(
+            let connection = await Connection.find(
                 {
                     where: { status_id: { '!=': Status.DELETED }, dealer: req.token.user.id },
                     select: ['dealer', 'customers']
                 },
             );
-            var obj = _.groupBy(userconnection, 'dealer');
+            var obj = _.groupBy(connection, 'dealer');
             let count;
             for (let key in obj) {
                 if (obj.hasOwnProperty(key)) {
@@ -114,7 +114,7 @@ module.exports = {
             where : { status_id: { '!=': Status.DELETED }, role:2 }
         });
         if (!userList) {
-            return new CustomError('user not found', {
+            throw new CustomError('user not found', {
                 status: 403
             });
         }
@@ -122,21 +122,21 @@ module.exports = {
         let data;
       
         for (let ul in userList) {
-            let userconnection = await UserConnection.find(
+            let connection = await Connection.find(
                 {
                     where: { status_id: { '!=': Status.DELETED }, dealer: userList[ul].id },
                     select: ['dealer', 'customers']
                 },
             );
             data = {};
-            if (userconnection.length >= 1) {
-                var obj = _.groupBy(userconnection, 'dealer');
+            if (connection.length >= 1) {
+                var obj = _.groupBy(connection, 'dealer');
                 
                 for (let key in obj) {
                     if (obj.hasOwnProperty(key)) {
                         // const user = await User.findOne({ id: key });
                         // if (!user) {
-                        //     return new CustomError('user not found', {
+                        //     throw new CustomError('user not found', {
                         //         status: 403
                         //     });
                         // }
@@ -177,9 +177,11 @@ module.exports = {
             // console.log(d);
             let date = new Date(2018, month - 1, d);
             let mDate = moment(date).format("YYYY-MM-DD HH:mm:ss");
+            let dateStart = moment(mDate).format("YYYY-MM-DD HH:mm:ss");
+            let dateEnd = moment(mDate).add(1, 'days').format("YYYY-MM-DD HH:mm:ss");
             // console.log(mDate);
             let queryObject = {
-                where: { status_id: { '!=': Status.DELETED }, expiration_date: { 'like': '%' + mDate + '%' } },
+                where: { status_id: { '!=': Status.DELETED }, expiration_date: {'>=': dateStart, '<': dateEnd}  },
             };
             const count = await ConnRenewal.count(queryObject);
             // console.log(result);

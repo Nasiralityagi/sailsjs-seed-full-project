@@ -24,7 +24,7 @@ module.exports = {
         let reference_date;
         // var dateFormat = "DD/MM/YYYY";
         // moment("28/02/2011", dateFormat, true).isValid();
-        if (moment(req.param('reference_date'), false).isValid()) {
+        if (req.param('reference_date') && moment(req.param('reference_date'), false).isValid()) {
             reference_date = moment(req.param('reference_date')).toDate();
         }
         let jesUserArr = req.param('journalentryaccount');
@@ -77,14 +77,15 @@ module.exports = {
 
                 if (req.param('status') == 'Save') {
                     // console.log(newJournalEntry);
-                    await JournalEntryAccount.destroy({ journalentry: newJournalEntry.id });
+                    await JournalEntryAccount.destroy({ journalentry: newJournalEntry.id == undefined ? newJournalEntry[0].id : newJournalEntry.id });
                     for (let key in jesUserArr) {
                         await JournalEntryAccount.create({
                             'debit': jesUserArr[key].debit,
                             'credit': jesUserArr[key].credit,
                             'account': jesUserArr[key].account,
-                            'journalentry': newJournalEntry.id,
-                            'status_id': Status.PENDING
+                            'journalentry': newJournalEntry.id == undefined ? newJournalEntry[0].id : newJournalEntry.id,
+                            'status_id': Status.PENDING,
+                            'createdBy': req.token.user.id, // current logged in user id
                         });
                     }
                     if (_.isNumber(req.param('id')))
@@ -235,14 +236,14 @@ module.exports = {
         const getJournalEntry = async () => {
 
             const JournalEntry_count = await JournalEntry.count({ where: { status_id: { '!=': Status.DELETED } } });
-            if (!JournalEntry_count) {
-                return new CustomError('JournalEntry not found', {
+            if (JournalEntry_count < 1) {
+                throw new CustomError('JournalEntry not found', {
                     status: 403
                 });
             }
             let journalEntry = await JournalEntry.find(queryObject);
-            if (!journalEntry) {
-                return new CustomError('JournalEntry not found', {
+            if (journalEntry.length < 1) {
+                throw new CustomError('JournalEntry not found', {
                     status: 403
                 });
             }
@@ -277,7 +278,7 @@ module.exports = {
                 return journalEntry;
             }
             else
-                return new CustomError('JournalEntry not found', {
+                throw new CustomError('JournalEntry not found', {
                     status: 403
                 });
 
@@ -301,7 +302,7 @@ module.exports = {
             });
 
             if (oldJournalEntry < 1) {
-                return new CustomError('Invalid JournalEntry  Id', {
+                throw new CustomError('Invalid JournalEntry  Id', {
                     status: 403
                 });
             }
@@ -331,7 +332,7 @@ module.exports = {
 
             if (updatedJournalEntry)
                 return updatedJournalEntry;
-            return new CustomError('Some error occurred. Please contact development team for help.', {
+            throw new CustomError('Some error occurred. Please contact development team for help.', {
                 status: 403
             });
 
@@ -356,7 +357,7 @@ module.exports = {
             const checkJournalEntry = await JournalEntry.count(queryObject);
 
             if (checkJournalEntry < 1) {
-                return new CustomError('Invalid Document Id', {
+                throw new CustomError('Invalid Document Id', {
                     status: 403
                 });
             }
@@ -370,7 +371,7 @@ module.exports = {
 
             if (deletedJournalEntry)
                 return deletedJournalEntry;
-            return new CustomError('Some error occurred. Please contact development team for help.', {
+            throw new CustomError('Some error occurred. Please contact development team for help.', {
                 status: 403
             });
 

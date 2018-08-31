@@ -28,6 +28,23 @@ module.exports.routes = {
     view: 'homepage'
   },
 
+  
+ /***************************************************************************
+  *                                                                          *
+  * More custom routes here...                                               *
+  * (See https://sailsjs.com/config/routes for examples.)                    *
+  *                                                                          *
+  * If a request to a URL doesn't match any of the routes in this file, it   *
+  * is matched against "shadow routes" (e.g. blueprint routes).  If it does  *
+  * not match any of those, it is matched against static assets.             *
+  *                                                                          *
+  ***************************************************************************/
+
+
+  //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
+  //  ╠═╣╠═╝║  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
+  //  ╩ ╩╩  ╩  ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
+
  // for UserController
 
   'POST /user/create': 'UserController.create',                           
@@ -42,6 +59,7 @@ module.exports.routes = {
 
   'POST /customer/create': 'CustomersController.create',
   'GET /customer/find': 'CustomersController.find',
+  'GET /customer/customerConnection': 'CustomersController.customerConnection',
   'GET /customer/findOne/:id': 'CustomersController.findOne',
   'POST /customer/update': 'CustomersController.update',
   'DELETE /customer/delete': 'CustomersController.delete',
@@ -50,6 +68,8 @@ module.exports.routes = {
   'POST /customer/fileUpload': 'CustomersController.fileUpload',
   'POST /customer/getToken': 'CustomersController.getToken',
   'POST /customer/verifyToken': 'CustomersController.verifyToken',
+  'GET /customer/customerDoc': 'CustomersController.customerDoc',
+
   // for DocumentsController
 
    'POST /documents/create': 'DocumentsController.create',
@@ -66,19 +86,21 @@ module.exports.routes = {
   'POST /basestation/update': 'BasestationController.update',
   'DELETE /basestation/delete': 'BasestationController.delete',
 
-// for  UserConnectionController
+// for  ConnectionController
 
-'POST /connection/create': 'UserConnectionController.create',
-'GET /connection/find': 'UserConnectionController.find',
-'GET /connection/findOne/:id': 'UserConnectionController.findOne',
-'POST /connection/update': 'UserConnectionController.update',
-'DELETE /connection/delete': 'UserConnectionController.delete',
-'POST /connection/connectionTimeline': 'UserConnectionController.connectionTimeline',
-'GET /connection/pendingConnection': 'UserConnectionController.pendingConnection',
-'POST /connection/activeConnection': 'UserConnectionController.activeConnection',
-'POST /connection/liveConnection': 'UserConnectionController.liveConnection',
-'POST /connection/fileUpload': 'UserConnectionController.fileUpload',
-
+'POST /connection/create': 'ConnectionController.create',
+'GET /connection/find': 'ConnectionController.find',
+'GET /connection/findOne/:id': 'ConnectionController.findOne',
+'POST /connection/update': 'ConnectionController.update',
+'DELETE /connection/delete': 'ConnectionController.delete',
+'POST /connection/connectionTimeline': 'ConnectionController.connectionTimeline',
+'GET /connection/pendingConnection': 'ConnectionController.pendingConnection',
+'POST /connection/activeConnection': 'ConnectionController.activeConnection',
+'POST /connection/liveConnection': 'ConnectionController.liveConnection',
+'POST /connection/fileUpload': 'ConnectionController.fileUpload',
+'GET /connection/docFind': 'ConnectionController.docFind',
+'POST /connection/rejectDoc': 'ConnectionController.rejectDoc',
+'POST /connection/increaseTimer': 'ConnectionController.increaseTimer',
 // for  PackagesController
 
 'POST /package/create': 'PackagesController.create',
@@ -95,8 +117,10 @@ module.exports.routes = {
 'GET /connrenewal/findOne/:id': 'ConnRenewalController.findOne',
 'POST /connrenewal/update': 'ConnRenewalController.update',
 'DELETE /connrenewal/delete': 'ConnRenewalController.delete',
-'POST /connrenewal/activeConnection': 'ConnRenewalController.activeConnection',
+'POST /connrenewal/rechargeConnection': 'ConnRenewalController.rechargeConnection',
 'GET /connrenewal/paidConnection': 'ConnRenewalController.paidConnection',
+'GET /connrenewal/expiredConnection': 'ConnRenewalController.expiredConnection',
+'POST /connrenewal/changePackage': 'ConnRenewalController.changePackage',
 
 // for  UsersRoutesController
 
@@ -142,7 +166,7 @@ module.exports.routes = {
 // for  DealerPackagesController
 
 'POST /dealerpackages/create': 'DealerPackagesController.create',
-'GET /dealerpackages/find': 'DealerPackagesController.find',
+'GET /dealerpackages/find/:dealer_id': 'DealerPackagesController.find',
 'GET /dealerpackages/findOne/:id': 'DealerPackagesController.findOne',
 'POST /dealerpackages/update': 'DealerPackagesController.update',
 'DELETE /dealerpackages/delete': 'DealerPackagesController.delete',
@@ -219,6 +243,7 @@ module.exports.routes = {
 'GET /account/findOne/:id': 'AccountController.findOne',
 'POST /account/update': 'AccountController.update',
 'DELETE /account/delete': 'AccountController.delete',
+'GET /account/chartOfAccount': 'AccountController.chartOfAccount',
 
 // for  JournalEntryController
 
@@ -232,23 +257,30 @@ module.exports.routes = {
 // AccountLedgerEntryController
 
 'GET /ledger/find': 'AccountLedgerEntryController.find',
-  /***************************************************************************
-  *                                                                          *
-  * More custom routes here...                                               *
-  * (See https://sailsjs.com/config/routes for examples.)                    *
-  *                                                                          *
-  * If a request to a URL doesn't match any of the routes in this file, it   *
-  * is matched against "shadow routes" (e.g. blueprint routes).  If it does  *
-  * not match any of those, it is matched against static assets.             *
-  *                                                                          *
-  ***************************************************************************/
+'GET /ledger/findOne/:id': 'AccountLedgerEntryController.findOne',
 
+// for  WorkflowController
 
-  //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
-  //  ╠═╣╠═╝║  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
-  //  ╩ ╩╩  ╩  ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
+'POST /workflow/create': 'WorkflowController.create',
+'GET /workflow/find': 'WorkflowController.find',
+'GET /workflow/findOne/:id': 'WorkflowController.findOne',
+'POST /workflow/update': 'WorkflowController.update',
+'DELETE /workflow/delete': 'WorkflowController.delete',
+'POST /workflow/createMultiple': 'WorkflowController.createMultiple',
 
+// for  EntryController
 
+'POST /entry/create': 'EntryController.create',
+
+// for  RolePermissionsController
+
+'POST /rolepermissions/create': 'RolePermissionsController.create',
+'GET /rolepermissions/find': 'RolePermissionsController.find',
+'GET /rolepermissions/findOne/:id': 'RolePermissionsController.findOne',
+'POST /rolepermissions/update': 'RolePermissionsController.update',
+'DELETE /rolepermissions/delete': 'RolePermissionsController.delete',
+
+ 
 
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
   //  ║║║║╣ ╠╩╗╠═╣║ ║║ ║╠╩╗╚═╗

@@ -21,7 +21,7 @@ module.exports = {
     }
     const countItems = await Items.count({name: req.param('name')});
     if(countItems >= 1){
-        return new CustomError('Item name already exsist', {
+        throw new CustomError('Item name already exsist', {
             status: 403
           });
     }
@@ -32,7 +32,8 @@ module.exports = {
         'code': req.param('code'),
         'unit': req.param('unit'),
         'description': req.param('description'),
-        'status_id': Status.ACTIVE,    
+        'status_id': Status.ACTIVE,  
+        'createdBy': req.token.user.id, // current logged in user id  
       }).fetch();
      
       if (newItems)
@@ -106,19 +107,16 @@ module.exports = {
       const getItems = async() => {
   
         const Items_count = await Items.count({ where: {status_id :{'!=': Status.DELETED} }});
-        if (!Items_count){
-          return new CustomError('items not found', {
+        if (Items_count < 1){
+          throw new CustomError('items not found', {
             status: 403
           });
         }
-        let items = await Items.find(queryObject);;
-        if (!items){
-          return new CustomError('items not found', {
+        let items = await Items.find(queryObject);
+        if (items.length < 1){
+          throw new CustomError('items not found', {
             status: 403
           });
-        }
-        for(let i of items){
-
         }
         const responseObject = {
           items: items,
@@ -145,23 +143,15 @@ module.exports = {
         let items = await Items.findOne(queryObject);
         
         if (items){
-        //   switch (items.unit) {
-        //       case value:
-                  
-        //           break;
-          
-        //       default:
-        //           break;
-        //   }
           return items;
         }
 
         else
-          return new CustomError('Items not found', {
+          throw new CustomError('Items not found', {
             status: 403
           });
   
-        return new CustomError('Some error occurred. Please contact development team for help.', {
+        throw new CustomError('Some error occurred. Please contact development team for help.', {
           status: 403
         });
       }
@@ -184,7 +174,7 @@ module.exports = {
         });
   
         if (oldItems < 1) {
-          return new CustomError('Invalid Items  Id', {
+          throw new CustomError('Invalid Items  Id', {
             status: 403
           });
         }
@@ -214,7 +204,7 @@ module.exports = {
   
         if (updatedItems)
           return updatedItems;
-        return new CustomError('Some error occurred. Please contact development team for help.', {
+        throw new CustomError('Some error occurred. Please contact development team for help.', {
           status: 403
         });
   
@@ -239,7 +229,7 @@ module.exports = {
         const checkItems = await Items.count(queryObject);
   
         if (checkItems < 1) {
-          return new CustomError('Invalid item Id', {
+          throw new CustomError('Invalid item Id', {
             status: 403
           });
         }
@@ -253,7 +243,7 @@ module.exports = {
   
         if (deletedItems)
           return deletedItems;
-        return new CustomError('Some error occurred. Please contact development team for help.', {
+        throw new CustomError('Some error occurred. Please contact development team for help.', {
           status: 403
         });
   

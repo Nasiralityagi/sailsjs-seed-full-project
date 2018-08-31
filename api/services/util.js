@@ -229,29 +229,23 @@ module.exports.sendNotification = async function (days) {
   };
 
   const ConnRenewal_count = await ConnRenewal.count({ where: { status_id: { '!=': Status.DELETED }, expiration_date: { 'like': date } } });
-  if (!ConnRenewal_count) {
-    return new CustomError('ConnRenewal not found', {
-      status: 403
-    });
+  if (ConnRenewal_count < 1) {
+    return 'ConnRenewal not found';
   }
-  let connRenewal = await ConnRenewal.find(queryObject).populate('userconnection');
-  if (!connRenewal) {
-    return new CustomError('connRenewal not found', {
-      status: 403
-    });
+  let connRenewal = await ConnRenewal.find(queryObject).populate('connection');
+  if (connRenewal.length < 1) {
+    return 'connRenewal not found in sendNotification';
   }
   // grouped data by dealer id
 
-  var newdata = _.groupBy(connRenewal, 'userconnection.dealer');
+  var newdata = _.groupBy(connRenewal, 'connection.dealer');
 
   // Foreach only used for group by
   _.forEach(newdata, async function (value, key) {
     let arrobj = [];
     const user = await User.findOne({ id: key });
     if (!user) {
-      return new CustomError('user not found', {
-        status: 403
-      });
+      return 'user not found';
     }
     for (let v of value) {
       let cObj = {
@@ -263,15 +257,15 @@ module.exports.sendNotification = async function (days) {
         package: '',
       };
 
-      const customer = await Customers.findOne({ id: v.userconnection.customers });
+      const customer = await Customers.findOne({ id: v.connection.customers });
       if (!customer) {
-        return new CustomError('customer not found', {
+        console.log('customer not found', {
           status: 403
         });
       }
       else {
-        // const packageDb = await Packages.findOne({ id: v.userconnection.packages });
-        const packageDb = await Packages.findOne({ id: v.userconnection.packages });
+        // const packageDb = await Packages.findOne({ id: v.connection.packages });
+        const packageDb = await Packages.findOne({ id: v.connection.packages });
         if (!packageDb) {
           sails.log('error in package');
           return 'error in package';
@@ -284,8 +278,9 @@ module.exports.sendNotification = async function (days) {
         arrobj.push(cObj);
       }
     }
-    sails.log('send mail to ', user.email == null ? 'email not found' : user.email);
+
     if (user.email) {
+      sails.log('send mail to : ', user.email);
       hybridNotification.sendMail(arrobj, user.email, days);
     }
   });
@@ -300,7 +295,7 @@ module.exports.cronStart = async function (id, time, expire) {
   jobs[id] = new CronJob({
     cronTime: time, //'* * * * *',
     onTick: function () {
-      sails.log('job ' + id + ' ticked ' + expire);
+      sails.log('job ' + id + ' ticked for days exipre in : ' + expire);
 
       util.sendNotification(expire)
         .then(result => {
@@ -355,7 +350,7 @@ module.exports.sendSMS = async function (_to, _message) {
     }
   };
 
-  console.log('message: ', _message);
+  // console.log('message: ', _message);
 
   // console.log('response')
 
@@ -382,14 +377,14 @@ module.exports.customerDelete = function () {
       });
 
       for (let c of customers) {
-        var dbDate = moment.unix(c.updatedAt/1000).format('MM/DD/YYYY');
+        var dbDate = moment.unix(c.updatedAt / 1000).format('MM/DD/YYYY');
         var cmpDate = moment().subtract(3, 'd').format('MM/DD/YYYY');
         if (dbDate == cmpDate) {
           const customerUpdate = await Customers.update({
             id: c.id
           }, { status_id: Status.DELETED }).fetch();
           if (customerUpdate) {
-            console.log('customer deleted with id : ' + c.id + ' and name : ' + c.first_name);
+            sails.log('customer deleted with id : ' + c.id + ' and name : ' + c.first_name);
           }
         }
 
@@ -403,7 +398,7 @@ module.exports.customerDelete = function () {
 };
 
 
-module.exports.fileUpload = function (file_of, file_of_id, file_name, file) {
+module.exports.fileUpload = function (file_of, file_of_id, file_name, file , id) {
 
   return new Promise(async (resolve, reject) => {
     const filePath = '../../assets/images/' + file_of + '/';
@@ -416,6 +411,7 @@ module.exports.fileUpload = function (file_of, file_of_id, file_name, file) {
           'file_of': file_of,
           'file_of_id': file_of_id,
           'status_id': Status.ACTIVE,
+          'createdBy': id, // current logged in user id
         }).fetch();
         if (!newDoc) {
           throw new CustomError('document insertion error', {
@@ -434,18 +430,18 @@ module.exports.expireConnection = function () {
     cronTime: '0 0 * * *',
     onTick: async function () {
       const connRenewal = await ConnRenewal.find({
-        where: { status_id: {'!=' : Status.DELETED } }
+        where: { status_id: { '!=': Status.DELETED } }
       });
 
       for (let c of connRenewal) {
-        var dbDate = moment.unix(c.expiration_date/1000).format('MM/DD/YYYY');
+        var dbDate = moment.unix(c.expiration_date / 1000).format('MM/DD/YYYY');
         var cmpDate = moment().format('MM/DD/YYYY');
         if (dbDate == cmpDate) {
           const connRenewalUpdate = await ConnRenewal.update({
             id: c.id
           }, { status_id: Status.EXPIRED }).fetch();
           if (connRenewalUpdate) {
-            console.log('userconnection expired with id : ' + connRenewalUpdate.userconnection);
+            console.log('connection expired with id : ' + connRenewalUpdate.connection);
           }
         }
 
@@ -457,15 +453,122 @@ module.exports.expireConnection = function () {
   cDelete.start();
 
 };
-// var XLSX = require('xlsx');
-// module.exports.process_RS =  function (stream/*:ReadStream*/, cb/*:(wb:Workbook)=>void*/)/*:void*/{
-//   var buffers = [];
-//   stream.on('data', function(data) { buffers.push(data); });
-//   stream.on('end', function() {
-//     var buffer = Buffer.concat(buffers);
-//     var workbook = XLSX.read(buffer, {type:"buffer"});
 
-//     /* DO SOMETHING WITH workbook IN THE CALLBACK */
-//     cb(workbook);
-//   });
-// }
+module.exports.balance_sum = async function (child, balance , index) {
+
+  //   function searchTree(element, matchingTitle){
+  //     if(element.title == matchingTitle){
+  //          return element;
+  //     }else if (element.children != null){
+  //          var i;
+  //          var result = null;
+  //          for(i=0; result == null && i < element.children.length; i++){
+  //               result = searchTree(element.children[i], matchingTitle);
+  //          }
+  //          return result;
+  //     }
+  //     return null;
+  // }
+
+
+
+  // function sumNodes(nodeList) {
+  //   var sumChildren = function(node) {
+  //       var sum = 0;
+  //       for (var i = 0; i < node.childNodes.length && node.childNodes != null; i++) {
+  //           sum += sumChildren(node.childNodes[i]);
+  //       }
+  //       node.sum = sum;
+  //       return node.count == undefined ? sum : node.count;
+  //   }
+  //   for(var i=0; i<nodeList.length; i++){
+  //   sumChildren(nodeList[i]);
+  // }
+
+  // return nodeList;
+  // }
+
+
+  // let balance;
+  if (child.length == 1 && !child[0].is_group) {
+
+    // console.log(' if ', child);
+    return balance += await sails.helpers.getAccountBalance(child[0].id);
+    // return balance;
+  }
+  else if (child.length > 0) {
+    // console.log(child)
+    for (let c in child) {
+      let next_child;
+      // c = index != undefined ? index+1 : c;
+      // if(child[c].id)
+      next_child = await Account.find(
+        {
+          where: { id: child[c].id, status_id: { '!=': Status.DELETED } },
+          // select: ['balance'],
+        }).populate('children');
+      console.log(next_child);
+
+      return balance + await util.balance_sum(next_child, await sails.helpers.getAccountBalance(child[c].id) , c);
+    }
+  }
+  else {
+    return 0;
+  }
+
+  // console.log( ' else ', child);
+  // let next_child;
+  // if (child[0].id) {
+  //   next_child = await Account.find(
+  //     {
+  //       where: { id: child[0].id, status_id: { '!=': Status.DELETED } },
+  //       // select: ['balance'],
+  //     }).populate('children');
+  // }
+  // let balance = await sails.helpers.getAcountBalance(child[0].id);
+  // if (next_child && next_child.length >= 1) {
+  //   return balance + balance_sum(next_child[0].children);
+  // }
+
+
+}
+
+
+
+// code for balance sum not working
+// let sum = 0;
+//     for (let c of child) {
+//       // console.log(c);
+//       sum += await sails.helpers.getAccountBalance(c.id);
+//       // console.log('c' , sum)
+//       const next_child1 = await Account.find(
+//         {
+//           where: { id: c.id, status_id: { '!=': Status.DELETED } },
+//           // select: ['balance'],
+//         }).populate('children');
+//       // console.log(c.children);
+//       for (let nc of next_child1) {
+//         sum += await sails.helpers.getAccountBalance(nc.id);
+//         console.log('nc' , sum)
+//         const next_child2 = await Account.find(
+//           {
+//             where: { id: nc.id, status_id: { '!=': Status.DELETED } },
+//             // select: ['balance'],
+//           }).populate('children');
+//           for(let nx of next_child2){
+
+//             sum += await sails.helpers.getAccountBalance(nx.id);
+//             console.log('nx' , sum)
+//             const next_child3 = await Account.find(
+//               {
+//                 where: { id: nx.id, status_id: { '!=': Status.DELETED } },
+//                 // select: ['balance'],
+//               }).populate('children');
+//               for(let ny of next_child3){
+//                 sum += await sails.helpers.getAccountBalance(ny.id);
+//                 console.log('ny'  , sum);
+//               }
+//           }
+
+//       }
+//     }

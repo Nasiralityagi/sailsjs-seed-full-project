@@ -22,6 +22,7 @@ module.exports = {
         'data_limit': req.param('data_limit'),
         'cost_price': req.param('cost_price'),
         'status_id': Status.ACTIVE,
+        'createdBy': req.token.user.id, // current logged in user id
       }).fetch();
      
       if (newPackage)
@@ -94,14 +95,14 @@ module.exports = {
       const getPackages = async() => {
   
         const packages_count = await Packages.count({ where: {status_id :{'!=': Status.DELETED} }});
-        if (!packages_count){
-          return new CustomError('package not found', {
+        if (packages_count < 1){
+          throw new CustomError('package not found', {
             status: 403
           });
         }
         let packages = await Packages.find(queryObject);
-        if (!packages){
-          return new CustomError('package not found', {
+        if (packages.length < 1){
+          throw new CustomError('package not found', {
             status: 403
           });
         }
@@ -132,11 +133,11 @@ module.exports = {
         if (packages)
           return packages;
         else
-          return new CustomError('Package not found', {
+          throw new CustomError('Package not found', {
             status: 403
           });
   
-        return new CustomError('Some error occurred. Please contact development team for help.', {
+        throw new CustomError('Some error occurred. Please contact development team for help.', {
           status: 403
         });
       }
@@ -159,7 +160,7 @@ module.exports = {
         });
   
         if (oldPackage < 1) {
-          return new CustomError('Invalid Packages  Id', {
+          throw new CustomError('Invalid Packages  Id', {
             status: 403
           });
         }
@@ -169,10 +170,10 @@ module.exports = {
         if (req.param('package_name') != undefined && _.isString(req.param('package_name'))) {
           packages.package_name = req.param('package_name');
         }
-        if (req.param('bandwidth') != undefined && _.isString(req.param('bandwidth'))) {
+        if (req.param('bandwidth') != undefined && _.isNumber(req.param('bandwidth'))) {
           packages.bandwidth = req.param('bandwidth');
         }
-        if (req.param('data_limit') != undefined && _.isString(req.param('data_limit'))) {
+        if (req.param('data_limit') != undefined && _.isNumber(req.param('data_limit'))) {
           packages.data_limit = req.param('data_limit');
         }
         if (req.param('cost_price') != undefined && _.isNumber(req.param('cost_price'))) {
@@ -189,7 +190,7 @@ module.exports = {
   
         if (updatedPackage)
           return updatedPackage;
-        return new CustomError('Some error occurred. Please contact development team for help.', {
+        throw new CustomError('Some error occurred. Please contact development team for help.', {
           status: 403
         });
   
@@ -214,7 +215,7 @@ module.exports = {
         const checkPackage = await Packages.count(queryObject);
         
         if (checkPackage < 1) {
-          return new CustomError('Invalid Package Id', {
+          throw new CustomError('Invalid Package Id', {
             status: 403
           });
         }
@@ -227,7 +228,7 @@ module.exports = {
         // });
         if (deletedPackage)
           return deletedPackage;
-        return new CustomError('Some error occurred. Please contact development team for help.', {
+        throw new CustomError('Some error occurred. Please contact development team for help.', {
           status: 403
         });
   

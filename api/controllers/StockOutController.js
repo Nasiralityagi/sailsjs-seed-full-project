@@ -60,6 +60,7 @@ module.exports = {
                 'dealer': dealer,
                 'supplier': supplier,
                 'status_id': Status.ACTIVE,
+                'createdBy': req.token.user.id, // current logged in user id
             }).fetch();
             if (newStockOut) {
                 let updateInventory = {};
@@ -139,35 +140,36 @@ module.exports = {
         const getStockOut = async () => {
 
             const StockOut_count = await StockOut.count({ where: { status_id: { '!=': Status.DELETED } } });
-            if (!StockOut_count) {
-                return new CustomError('stockOut not found', {
+            if (StockOut_count < 1) {
+                throw new CustomError('stockOut not found', {
                     status: 403
                 });
             }
             let stockOut = await StockOut.find(queryObject).populate('customers')
                 .populate('dealer').populate('supplier').populate('items')
                 .populate('warehouse');
-            if (!stockOut) {
-                return new CustomError('stockOut not found', {
-                    status: 403
-                });
+            if (stockOut) {
+
+                for (let key in stockOut) {
+                    // if (stockOut[key].supplier != null)
+                    //     stockOut[key].supplier = stockOut[key].supplier.first_name;
+                    if (stockOut[key].items != null)
+                        stockOut[key].items = stockOut[key].items.name;
+                    if (stockOut[key].warehouse != null)
+                        stockOut[key].warehouse = stockOut[key].warehouse.name;
+                }
+
+                const responseObject = {
+                    stockOut: stockOut,
+                    totalCount: StockOut_count,
+                    perPage: params.per_page,
+                    currentPage: params.page
+                };
+                return responseObject;
             }
-            for (let key in stockOut) {
-                // if (stockOut[key].supplier != null)
-                //     stockOut[key].supplier = stockOut[key].supplier.first_name;
-                if (stockOut[key].items != null)
-                    stockOut[key].items = stockOut[key].items.name;
-                if (stockOut[key].warehouse != null)
-                    stockOut[key].warehouse = stockOut[key].warehouse.name;
-            }
-            
-            const responseObject = {
-                stockOut: stockOut,
-                totalCount: StockOut_count,
-                perPage: params.per_page,
-                currentPage: params.page
-            };
-            return responseObject;
+            throw new CustomError('stockOut not found', {
+                status: 403
+            });
         }
 
         getStockOut()
@@ -184,9 +186,9 @@ module.exports = {
         };
         const getStockOut = async () => {
             let stockOut = await StockOut.findOne(queryObject).populate('customers')
-            .populate('dealer').populate('supplier').populate('items')
-            .populate('warehouse');
-            if (stockOut){
+                .populate('dealer').populate('supplier').populate('items')
+                .populate('warehouse');
+            if (stockOut) {
                 if (stockOut[key].items != null)
                     stockOut[key].items = stockOut[key].items.name;
                 if (stockOut[key].warehouse != null)
@@ -194,11 +196,11 @@ module.exports = {
                 return stockOut;
             }
             else
-                return new CustomError('StockOut not found', {
+                throw new CustomError('StockOut not found', {
                     status: 403
                 });
 
-            return new CustomError('Some error occurred. Please contact development team for help.', {
+            throw new CustomError('Some error occurred. Please contact development team for help.', {
                 status: 403
             });
         }
@@ -221,7 +223,7 @@ module.exports = {
             });
 
             if (oldStockOut < 1) {
-                return new CustomError('Invalid StockOut  Id', {
+                throw new CustomError('Invalid StockOut  Id', {
                     status: 403
                 });
             }
@@ -254,7 +256,7 @@ module.exports = {
 
             if (updatedStockOut)
                 return updatedStockOut;
-            return new CustomError('Some error occurred. Please contact development team for help.', {
+            throw new CustomError('Some error occurred. Please contact development team for help.', {
                 status: 403
             });
 
@@ -279,7 +281,7 @@ module.exports = {
             const checkStockOut = await StockOut.count(queryObject);
 
             if (checkStockOut < 1) {
-                return new CustomError('Invalid Document Id', {
+                throw new CustomError('Invalid Document Id', {
                     status: 403
                 });
             }
@@ -293,7 +295,7 @@ module.exports = {
 
             if (deletedStockOut)
                 return deletedStockOut;
-            return new CustomError('Some error occurred. Please contact development team for help.', {
+            throw new CustomError('Some error occurred. Please contact development team for help.', {
                 status: 403
             });
 

@@ -95,11 +95,11 @@ module.exports = {
             'required' : true,
           },
         salesman: {
-            collection: 'userconnection',
+            collection: 'connection',
             via: 'salesman'
         },
         dealer: {
-            collection: 'userconnection',
+            collection: 'connection',
             via: 'dealer'
         },
         dealer: {
@@ -135,8 +135,9 @@ module.exports = {
             via: 'dealer'
         },
         installed_by: {
-            collection: 'userconnection',
+            collection: 'connection',
             via: 'installed_by'
         },
+       
     }
 };

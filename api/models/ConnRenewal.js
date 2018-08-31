@@ -38,9 +38,9 @@ module.exports = {
     },
     // association 
 
-    'userconnection': {
+    'connection': {
       'columnName': 'connection_id',
-      'model': 'userconnection',
+      'model': 'connection',
       'required': true
     },
     'user': {

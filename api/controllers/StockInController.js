@@ -41,6 +41,7 @@ module.exports = {
                 'items': req.param('item_id'),
                 'warehouse': req.param('warehouse_id'),
                 'status_id': Status.ACTIVE,
+                'createdBy': req.token.user.id, // current logged in user id
             }).fetch();
             if (newStockIn) {
                 let updateInventory = {};
@@ -120,35 +121,35 @@ module.exports = {
         const getStockIn = async () => {
 
             const StockIn_count = await StockIn.count({ where: { status_id: { '!=': Status.DELETED } } });
-            if (!StockIn_count) {
-                return new CustomError('stockIn not found', {
+            if (StockIn_count < 1) {
+                throw new CustomError('stockIn not found', {
                     status: 403
                 });
             }
             let stockIn = await StockIn.find(queryObject).populate('items')
                 .populate('warehouse').populate('supplier');
-            if (!stockIn) {
-                return new CustomError('stockIn not found', {
-                    status: 403
-                });
+            if (stockIn) {
+
+                for (let key in stockIn) {
+                    if (stockIn[key].supplier != null)
+                        stockIn[key].supplier = stockIn[key].supplier.first_name;
+                    if (stockIn[key].items != null)
+                        stockIn[key].items = stockIn[key].items.name;
+                    if (stockIn[key].warehouse != null)
+                        stockIn[key].warehouse = stockIn[key].warehouse.name;
+                }
+
+                const responseObject = {
+                    stockIn: stockIn,
+                    totalCount: StockIn_count,
+                    perPage: params.per_page,
+                    currentPage: params.page
+                };
+                return responseObject;
             }
-            
-            for (let key in stockIn) {
-                if (stockIn[key].supplier != null)
-                    stockIn[key].supplier = stockIn[key].supplier.first_name;
-                if (stockIn[key].items != null)
-                    stockIn[key].items = stockIn[key].items.name;
-                if (stockIn[key].warehouse != null)
-                    stockIn[key].warehouse = stockIn[key].warehouse.name;
-            }
-            
-            const responseObject = {
-                stockIn: stockIn,
-                totalCount: StockIn_count,
-                perPage: params.per_page,
-                currentPage: params.page
-            };
-            return responseObject;
+            throw new CustomError('stockIn not found', {
+                status: 403
+            });
         }
 
         getStockIn()
@@ -177,11 +178,11 @@ module.exports = {
                 return stockIn;
             }
             else
-                return new CustomError('StockIn not found', {
+                throw new CustomError('StockIn not found', {
                     status: 403
                 });
 
-            return new CustomError('Some error occurred. Please contact development team for help.', {
+            throw new CustomError('Some error occurred. Please contact development team for help.', {
                 status: 403
             });
         }
@@ -204,7 +205,7 @@ module.exports = {
             });
 
             if (oldStockIn < 1) {
-                return new CustomError('Invalid StockIn  Id', {
+                throw new CustomError('Invalid StockIn  Id', {
                     status: 403
                 });
             }
@@ -248,7 +249,7 @@ module.exports = {
 
             if (updatedStockIn)
                 return updatedStockIn;
-            return new CustomError('Some error occurred. Please contact development team for help.', {
+            throw new CustomError('Some error occurred. Please contact development team for help.', {
                 status: 403
             });
 
@@ -273,7 +274,7 @@ module.exports = {
             const checkStockIn = await StockIn.count(queryObject);
 
             if (checkStockIn < 1) {
-                return new CustomError('Invalid Document Id', {
+                throw new CustomError('Invalid Document Id', {
                     status: 403
                 });
             }
@@ -287,7 +288,7 @@ module.exports = {
 
             if (deletedStockIn)
                 return deletedStockIn;
-            return new CustomError('Some error occurred. Please contact development team for help.', {
+            throw new CustomError('Some error occurred. Please contact development team for help.', {
                 status: 403
             });
 

@@ -21,23 +21,23 @@ module.exports.policies = {
   // '*': ['isAdmin' , 'isAuth'],
   '*': ['isAuth'],
   UserController:{
-    'create':true,
+    // 'create':true,
     'login':true,
     'logout':true, 
   },
-  RoutesController:{
-    'create':true,  
-    'find':true 
-  },
-  RolesRoutesController:{
-    'create':true,  
-  },
-  RolesController:{
-    'create':true,  
-  },
-  UsersRoutesController:{
-    'create':true,  
-  },
+  // RoutesController:{
+  //   'create':true,  
+  //   'find':true 
+  // },
+  // RolesRoutesController:{
+  //   'create':true,  
+  // },
+  // RolesController:{
+  //   'create':true,  
+  // },
+  // UsersRoutesController:{
+  //   'create':true,  
+  // },
   // ExpirationReportController:{
   //   'find':true,
   // }

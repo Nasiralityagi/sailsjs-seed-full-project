@@ -37,8 +37,8 @@ module.exports = {
     ONHOLD: 20,
     CLOSED: 21,
 
-    // For Email
-    SENT:22,
+    // Connection
+    PACKAGE_UPDATED:22,
     OUTBOX:23,
     INBOX:24,
     REPLY:25,
