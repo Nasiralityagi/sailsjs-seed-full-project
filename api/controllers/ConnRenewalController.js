@@ -59,9 +59,17 @@ module.exports = {
         'createdBy': req.token.user.id
       }).fetch();
 
-      if (newConnRenewal)
+      if (newConnRenewal){
+           await sails.helpers.makeConnectionPayment(newConnRenewal.id, newConnRenewal.connection, newConnRenewal.renewal_price , newConnRenewal.cost_price ,newConnRenewal.createdBy)
+                .intercept('error', () => {
+                  ConnRenewal.destroy({ id: newConnRenewal.id });
+                  throw new CustomError('error while connection recharge.', {
+                    status: 403
+                  });
+                });
+          
         return newConnRenewal;
-
+      }
       throw new CustomError('Some error occurred. Please contact support team for help. ');
     }
 
@@ -70,9 +78,7 @@ module.exports = {
       .catch(err => util.errorResponse(err, res));
   },
   rechargeConnection: async function (req, res) {
-    const infixToPrefix = require('infix-to-prefix');
-    var Calculator = require('polish-notation'),
-      calculator = new Calculator();
+   
     if (!(req.param('id')) || isNaN(req.param('id')))
       return res.badRequest('Not a valid request');
 
@@ -100,178 +106,16 @@ module.exports = {
       }, connRenewal).fetch();
 
       if (updatedConnRenewal) {
-        let queryObject = {
-          where: { id: updatedConnRenewal[0].connection, status_id: { '!=': Status.DELETED } }
-        };
-        // console.log(updatedConnRenewal);
-        const newConnection = await Connection.findOne(queryObject)
-          .populate('packages').populate('customers').populate('dealer');
-
-        if (!newConnection) {
-          await ConnRenewal.update({
-            id: ConnRenewalId
-          }, { status_id: Status.PAID });
-          throw new CustomError('connection record not found', {
-            status: 403
-          });
-        }
-        else {
-          let workflowArray = [];
-          const workflow = await Workflow.find({
-            where: { wf_number: 1, status_id: { '!=': Status.DELETED } }
-          }).populate('account');
-          if (workflow.length < 1) {
-            await ConnRenewal.update({
-              id: ConnRenewalId
-            }, { status_id: Status.PAID }).fetch();
-            throw new CustomError('workflow record not found', {
-              status: 403
-            });
-          }
-          else {
-            const newJournalEntry = await JournalEntry.create(
-              {
-                'date': moment().toDate(),
-                'entry_type': 1,
-                'reference_number': 0,
-                'reference_date': moment().toDate(),
-                'user_remarks': 'Record inserted through connection renewal.',
-                'status_id': Status.ACTIVE,
-              }).fetch();
-            // await JournalEntry.findOne({
-            //   name:newConnection.customers.username
-            // });
-            if (!newJournalEntry) {
-              await ConnRenewal.update({
-                id: ConnRenewalId
-              }, { status_id: Status.PAID }).fetch();
-              throw new CustomError('JournalEntry record insertion error', {
-                status: 403
-              });
-            }
-            for (let w of workflow) {
-              data = {};
-              data.journalentry = newJournalEntry.id;
-              if(w.account.id == 99){
-                const connAccount = await Account.find({where:{name : newConnection.customers.username}}).limit(1);
-                data.account = connAccount.length == 0 || connAccount == undefined ? w.account.id : connAccount[0].id;
-              }
-              else if(w.account.id == 129){
-                const connAccount = await Account.find({where:{name : newConnection.dealer.username}}).limit(1);
-                data.account = connAccount.length == 0 || connAccount == undefined ? w.account.id : connAccount[0].id;
-              }
-              else
-                data.account = w.account.id
-              let formulaString = w.credit == '0' ? infixToPrefix(w.debit) : infixToPrefix(w.credit);
-              let variableArr = formulaString.split(' ');
-              for (let v of variableArr) {
-                switch (v) {
-                  case 'amount':
-                    formulaString = formulaString.replace('amount', updatedConnRenewal[0].renewal_price);
-                    break;
-                  case 'cost_price':
-                    formulaString = formulaString.replace('cost_price', updatedConnRenewal[0].cost_price);
-                    break;
-                  case 'dealer_price':
-                    let dealerPackages = await DealerPackages.findOne({
-                      where: {
-                        id: newConnection.packages.id, status_id: { '!=': Status.DELETED },
-                      }
-                    });
-                    // console.log('dealerPackages' , dealerPackages)
-                    formulaString = formulaString.replace('dealer_price', dealerPackages.price || '0');
-                    break;
-                  case 'package_price':
-                    formulaString = formulaString.replace('package_price', newConnection.packages.cost_price);
-                    break;
-                  default:
-                    break;
-                }
-              }
-              // console.log('formulaString', formulaString);
-              data.credit = w.credit == '0' ? w.credit : calculator.calculate(formulaString);
-              data.debit = w.debit == '0' ? w.debit : calculator.calculate(formulaString);
-              data.credit = parseInt(data.credit);
-              data.debit = parseInt(data.debit);
-              workflowArray.push(data);
-
-            }
-            // console.log('workflowArray', workflowArray);
-            for (let key in workflowArray) {
-              // console.log(workflowArray[key] , newJournalEntry.id);
-              const newJournalEntryAccount = await JournalEntryAccount.create({
-                'debit': workflowArray[key].debit,
-                'credit': workflowArray[key].credit,
-                'account': workflowArray[key].account,
-                'journalentry': newJournalEntry.id,
-                'status_id': Status.ACTIVE,
-                'createdBy': req.token.user.id, // current logged in user id
-              }).fetch();
-
-              const ale = await AccountLedgerEntry.find({
-                where: { account: workflowArray[key].account },
-                sort: 'updatedAt DESC',
-                limit: 1
-              });
-              let against_account = null;
-
-              for (let j of workflowArray) {
-                // console.log(j);
-                if (workflowArray[key].debit <= 0 && j.account != workflowArray[key].account) {
-                  if (j.debit > 0) {
-                    const account = await Account.findOne({ id: j.account });
-                    if (account) {
-                      against_account = against_account == null ?
-                        account.name : against_account + ' , ' + account.name;
-                    }
-                    // console.log(against_account)
-                  }
-                }
-                else if (workflowArray[key].credit <= 0 && j.account != workflowArray[key].account) {
-                  if (j.credit > 0) {
-                    const account = await Account.findOne({ id: j.account });
-                    if (account) {
-                      against_account = against_account == null ?
-                        account.name : against_account + ' , ' + account.name;
-                    }
-                    // console.log(against_account)
-                  }
-                }
-              }
-
-
-              let balance = 0;
-              if (ale.length == 0) {
-                balance = workflowArray[key].debit - workflowArray[key].credit
-              }
-              else {
-                balance = ale[0].balance + (workflowArray[key].debit - workflowArray[key].credit)
-              }
-              const newALE = await AccountLedgerEntry.create({
-                'date': newJournalEntry.date,
-                'account': workflowArray[key].account,
-                'debit': workflowArray[key].debit,
-                'credit': workflowArray[key].credit,
-                'against_account': against_account == null ? '' : against_account,
-                'reference_type': '',
-                'balance': balance,
-                'createdBy': req.token.user.id, // current logged in user id
-              }).fetch();
-              if (!newALE) {
-                await ConnRenewal.update({
-                  id: ConnRenewalId
-                }, { status_id: Status.PAID }).fetch();
-
-                await JournalEntryAccount.destroy({ id: newJournalEntryAccount.id });
-                throw new CustomError('Account Ledger insertion error.', {
-                  status: 403
-                });
-              }
-              // console.log('data inserted in ledger ', newALE);
-            }
-          }
-        }
-        return 'Recharged successfully';
+        // await sails.helpers.makeConnectionPayment(ConnRenewalId, updateConnRenewal[0].connection, req.token.user.id)
+        //         .intercept('error', () => {
+        //            ConnRenewal.update({
+        //             id: ConnRenewalId
+        //           }, {status_id: Status.PAID});
+        //           throw new CustomError('error while connection recharge.', {
+        //             status: 403
+        //           });
+        //         });
+        return 'Recharged successfully'
       }
 
       throw new CustomError('Some error occurred. Please contact development team for help.', {
@@ -293,28 +137,35 @@ module.exports = {
     let ConnectionId = req.param('id');
 
     const changePackage = async () => {
-      const queryObjectStatus = {
-        where: { connection: ConnectionId, status_id: { '!=': Status.DELETED } }
-      };
-      const checkStatus = await ConnRenewal.count(queryObjectStatus);
+      // const queryObjectStatus = {
+      //   where: { connection: ConnectionId, status_id: { '!=': Status.DELETED } }
+      // };
+      // const checkStatus = await ConnRenewal.count(queryObjectStatus);
 
-     const changePackageC = await Connection.update({
-        id: ConnectionId
-      }, {
-          status_id: checkStatus > 1 ? Status.ACTIVE: Status.PENDING
-        }).fetch();
-      if(changePackageC.length > 0){
+      // const changePackageC = await Connection.update({
+      //   id: ConnectionId
+      // }, {
+      //     status_id: checkStatus > 1 ? Status.ACTIVE : Status.PENDING
+      //   }).fetch();
+      const conn = await Connection.findOne({ id: ConnectionId });
+      const invoiceCount = await Invoices.count({ customers: conn.customers , paid:true , status_id:Status.ACTIVE });
+        const changePackageC = await Connection.update({
+            id: conn.id
+          }, {
+              status_id: invoiceCount > 0 ? Status.ACTIVE:Status.PENDING,
+            }).fetch();
+      if (changePackageC.length > 0) {
         return 'Package Updated Successfully.'
       }
-      else{
+      else {
         throw new CustomError('Error while package updation.', {
           status: 403
         });
       }
     }
     changePackage()
-    .then(res.ok)
-    .catch(err => util.errorResponse(err, res));
+      .then(res.ok)
+      .catch(err => util.errorResponse(err, res));
   },
   find: function (req, res) {
     var params = req.allParams(),
@@ -467,7 +318,7 @@ module.exports = {
       if (connRenewal.length < 1) {
         return connRenewal;
       }
-      
+
       // new code
       const connection = await Connection.findOne({
         id: connRenewal[0].connection,
@@ -501,7 +352,7 @@ module.exports = {
               });
           }
           connectionReview.stop();
-          console.log('cron job stopped');
+          // console.log('cron job stopped');
         },
         start: false,
         timeZone: 'America/Los_Angeles'
@@ -515,7 +366,7 @@ module.exports = {
       .then(res.ok)
       .catch(err => util.errorResponse(err, res));
   },
-  
+
   expiredConnection: async function (req, res) {
     var params = req.allParams(),
       params = _.defaults(params, {
@@ -706,7 +557,8 @@ module.exports = {
     let connRenewal;
     const getConnRenewal = async () => {
 
-      const ConnRenewal_count = await ConnRenewal.count({ where: { status_id: { '!=': Status.DELETED } } });
+      const ConnRenewal_count = await ConnRenewal.count({ 
+          where: { status_id: { '!=': Status.DELETED } } });
       if (!ConnRenewal_count) {
         throw new CustomError('connection not found', {
           status: 403
@@ -715,11 +567,14 @@ module.exports = {
 
       if (req.token.user.role.id == 2) {
         for (const c of connection) {
-          let connRenewalFN = await ConnRenewal.findOne({
-            where: { status_id: { '!=': Status.DELETED }, connection: c.id }
+          let connRenewalFN = await ConnRenewal.find({
+            where: { status_id: { '!=': Status.DELETED }, connection: c.id },
+            sort:['expiration_date DESC']
           }).populate('connection');
-          if (connRenewalFN) {
-            arrObj.push(connRenewalFN);
+          if (connRenewalFN.length >= 1) {
+            for (const conn of connRenewalFN) {
+              arrObj.push(conn);
+            }
           }
 
         }
@@ -761,7 +616,7 @@ module.exports = {
           if (user) {
             data.area_dealer = user.first_name;
           }
-          const package = await Packages.findOne(cr.connection.packages);
+          const package = await Packages.findOne(cr.connection.new_package);
           if (package) {
             data.package = package.package_name;
           }

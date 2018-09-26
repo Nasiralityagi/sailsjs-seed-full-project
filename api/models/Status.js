@@ -32,6 +32,7 @@ module.exports = {
     FAILED: 19,
     FREE: 35,
     CANCELLED: 36,
+    UNPAID: 46,
 
     // For Job
     ONHOLD: 20,

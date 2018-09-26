@@ -41,7 +41,7 @@ module.exports = {
     },
     createMultiple: async function (req, res) {
 
-        var randomnumber = Math.floor(Math.random() * 10000) + 1;
+        // var randomnumber = Math.floor(Math.random() * 10000) + 1;
         if (!req.param('dataArray') || !_.isArray(req.param('dataArray'))) {
             return res.badRequest("dataArray required");
         }
@@ -57,7 +57,7 @@ module.exports = {
             // }
 
             const newWorkflow = await Workflow.create({
-                'wf_number': randomnumber,
+                'wf_number': d.wf_number,
                 'debit': d.debit,
                 'credit': d.credit,
                 'account': d.account,

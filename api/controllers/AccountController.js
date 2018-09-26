@@ -4,7 +4,7 @@
  * @description :: Server-side actions for handling incoming requests.
  * @help        :: See https://sailsjs.com/docs/concepts/actions
  */
-
+var moment = require('moment');
 module.exports = {
 
   create: function (req, res) {
@@ -116,6 +116,10 @@ module.exports = {
           status: 403
         });
       }
+      const dealerAccount = await Account.findOne({ id: 99 }).populate('children').populate('parent');
+      const customerAccount = await Account.findOne({ id: 129 }).populate('children').populate('parent');
+      account.push(dealerAccount);
+      account.push(customerAccount);
       const responseObject = {
         account: account,
         totalCount: Acount_count,
@@ -174,6 +178,7 @@ module.exports = {
       where: { status_id: { '!=': Status.DELETED }, },
       // limit: parseInt(params.per_page),
       sort: '',
+      select: ['id', 'name', 'root_type'],
     };
     if (params.sort && _.indexOf(sortable, params.sort) > -1) {
       queryObject.sort = params.sort + ' ' + params.sort_dir;
@@ -239,7 +244,7 @@ module.exports = {
           status: 403
         });
       }
-      let account = await Account.find(queryObject).populate('parent').populate('children');
+      let account = await Account.find(queryObject).populate('parent', { select: ['name'] });
       if (account.length < 1) {
         throw new CustomError('account not found', {
           status: 403
@@ -268,7 +273,7 @@ module.exports = {
               {
                 where: { id: parent.id, status_id: { '!=': Status.DELETED } },
                 select: ['name'],
-              }).populate('parent');
+              }).populate('parent', { select: ['name'] });
             parent = next_parent[0].parent[0];
             if (next_parent[0].parent.length > 0) {
               data.hierarchy.push(parent.name);
@@ -491,5 +496,200 @@ module.exports = {
 
 
 
+  },
+  payment: async function (req, res) {
+    const infixToPrefix = require('infix-to-prefix');
+    var Calculator = require('polish-notation'),
+      calculator = new Calculator();
+    if (!req.param('amount') || isNaN(req.param('amount'))) {
+      return res.badRequest("amount is required");
+    }
+    if (!req.param('partyOfId') || isNaN(req.param('partyOfId'))) {
+      return res.badRequest("Id of party is required");
+    }
+    if (!req.param('partyOf') || !_.isString(req.param('partyOf'))) {
+      return res.badRequest("party is required");
+    }
+    // amount: 343
+    // partyOf: "Dealer"
+    // partyOfId: 11
+    let wf_number;
+    let dealers;
+    let customers;
+    switch (req.param('partyOf')) {
+      case 'Dealer': {
+        wf_number = 4;
+        dealers = await User.findOne({ id: req.param('partyOfId') });
+        break;
+      }
+      case 'Customer': {
+        wf_number = 3;
+        customers = await Customers.findOne({ id: req.param('partyOfId') });
+        break;
+      }
+      case 'Employee': {
+        wf_number = 5;
+        break;
+      }
+      default:
+        break;
+    }
+    const paymentAccount = async () => {
+
+      let workflowArray = [];
+      const workflow = await Workflow.find({
+        where: { wf_number: wf_number, status_id: { '!=': Status.DELETED } }
+      }).populate('account');
+      if (workflow.length < 1) {
+        throw new CustomError('workflow record not found', {
+          status: 403
+        });
+      }
+      else {
+        const newJournalEntry = await JournalEntry.create(
+          {
+            'date': moment().toDate(),
+            'entry_type': 1,
+            'reference_number': 0,
+            'reference_date': moment().toDate(),
+            'user_remarks': 'account payment recieved of ' + req.param('partyOf') + ' with id : ' + req.param('partyOfId'),
+            'status_id': Status.ACTIVE,
+          }).fetch();
+        // await JournalEntry.findOne({
+        //   name:newConnection.customers.username
+        // });
+        if (!newJournalEntry) {
+          throw new CustomError('JournalEntry record insertion error', {
+            status: 403
+          });
+        }
+        for (let w of workflow) {
+          data = {};
+          data.journalentry = newJournalEntry.id;
+          if (w.account.id == 99) {
+            const connAccount = await Account.find({ where: { name: customers.username } }).limit(1);
+            data.account = connAccount.length == 0 || connAccount == undefined ? w.account.id : connAccount[0].id;
+          }
+          else if (w.account.id == 129) {
+            
+              const connAccount = await Account.find({ where: { name: dealers.username } }).limit(1);
+              data.account = connAccount.length == 0 || connAccount == undefined ? w.account.id : connAccount[0].id;
+            
+          }
+          else
+            data.account = w.account.id
+          let formulaString = w.credit == '0' ? infixToPrefix(w.debit) : infixToPrefix(w.credit);
+          let variableArr = formulaString.split(' ');
+          for (let v of variableArr) {
+            switch (v) {
+              case 'amount':
+                formulaString = formulaString.replace('amount', req.param('amount'));
+                break;
+              case 'cost_price':
+                formulaString = formulaString.replace('cost_price', req.param('amount'));
+                break;
+              case 'dealer_price':
+                let dealerPackages = await DealerPackages.findOne({
+                  where: {
+                    id: account.packages.id, status_id: { '!=': Status.DELETED },
+                  }
+                });
+                // console.log('dealerPackages' , dealerPackages)
+                formulaString = formulaString.replace('dealer_price', dealerPackages.price || '0');
+                break;
+              case 'package_price':
+                formulaString = formulaString.replace('package_price', req.param('amount'));
+                break;
+              default:
+                break;
+            }
+          }
+          // console.log('formulaString', formulaString);
+
+          let credit = w.credit.trim();
+          let debit = w.debit.trim();
+          data.credit = credit == '0' ? credit : calculator.calculate(formulaString);
+          data.debit = debit == '0' ? debit : calculator.calculate(formulaString);
+          data.credit = parseInt(data.credit);
+          data.debit = parseInt(data.debit);
+
+          workflowArray.push(data);
+
+        }
+        // console.log('workflowArray', workflowArray);
+        for (let key in workflowArray) {
+          // console.log(workflowArray[key] , newJournalEntry.id);
+          const newJournalEntryAccount = await JournalEntryAccount.create({
+            'debit': workflowArray[key].debit,
+            'credit': workflowArray[key].credit,
+            'account': workflowArray[key].account,
+            'journalentry': newJournalEntry.id,
+            'status_id': Status.ACTIVE,
+            'createdBy': req.token.user.id, // current logged in user id
+          }).fetch();
+
+          const ale = await AccountLedgerEntry.find({
+            where: { account: workflowArray[key].account },
+            sort: 'updatedAt DESC',
+            limit: 1
+          });
+          let against_account = null;
+
+          for (let j of workflowArray) {
+            // console.log(j);
+            if (workflowArray[key].debit <= 0 && j.account != workflowArray[key].account) {
+              if (j.debit > 0) {
+                const account = await Account.findOne({ id: j.account });
+                if (account) {
+                  against_account = against_account == null ?
+                    account.name : against_account + ' , ' + account.name;
+                }
+                // console.log(against_account)
+              }
+            }
+            else if (workflowArray[key].credit <= 0 && j.account != workflowArray[key].account) {
+              if (j.credit > 0) {
+                const account = await Account.findOne({ id: j.account });
+                if (account) {
+                  against_account = against_account == null ?
+                    account.name : against_account + ' , ' + account.name;
+                }
+                // console.log(against_account)
+              }
+            }
+          }
+
+
+          let balance = 0;
+          if (ale.length == 0) {
+            balance = workflowArray[key].debit - workflowArray[key].credit
+          }
+          else {
+            balance = ale[0].balance + (workflowArray[key].debit - workflowArray[key].credit)
+          }
+          const newALE = await AccountLedgerEntry.create({
+            'date': newJournalEntry.date,
+            'account': workflowArray[key].account,
+            'debit': workflowArray[key].debit,
+            'credit': workflowArray[key].credit,
+            'against_account': against_account == null ? '' : against_account,
+            'reference_type': '',
+            'balance': balance,
+            'createdBy': req.token.user.id, // current logged in user id
+          }).fetch();
+          if (!newALE) {
+            await JournalEntryAccount.destroy({ id: newJournalEntryAccount.id });
+            throw new CustomError('Account Ledger insertion error.', {
+              status: 403
+            });
+          }
+          // console.log('data inserted in ledger ', newALE);
+        }
+      }
+      return 'Payment made successfully'
+    }
+    paymentAccount()
+      .then(res.ok)
+      .catch(err => util.errorResponse(err, res));
   }
 };

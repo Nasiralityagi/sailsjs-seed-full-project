@@ -18,8 +18,13 @@ module.exports = {
                     select: ['id']
                 },
             );
+            // console.log(connection);
+            let connectionList = [];
+            for(let c of connection){
+                connectionList.push(c.id);
+            }
             queryObject = {
-                where: { connection: connection.id, status_id: { '!=': Status.DELETED }, expiration_date: {'>=': dateStart, '<': dateEnd} },
+                where: { connection: {in:connectionList}, status_id: { '!=': Status.DELETED }, expiration_date: {'>=': dateStart, '<': dateEnd} },
             };
         }
         else {

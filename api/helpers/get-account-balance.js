@@ -33,7 +33,8 @@ module.exports = {
     var accountBalance = await AccountLedgerEntry.find({
       where: { account: inputs.id },
       sort: 'updatedAt DESC',
-      limit: 1
+      limit: 1,
+      select:['balance'],
     });
     // TODO
     

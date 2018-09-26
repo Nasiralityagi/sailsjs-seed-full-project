@@ -37,6 +37,7 @@ module.exports = {
       collection: 'dealerpackages',
       via: 'packages'
     },
+   
   },
 
 };

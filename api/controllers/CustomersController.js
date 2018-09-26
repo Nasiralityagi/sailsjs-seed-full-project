@@ -7,9 +7,11 @@
 var _ = require('lodash');
 var moment = require('moment');
 var otplib = require('otplib');
+var request = require('request');
+
 const secret = 'KVKFKRCPNZQUYMLXOVYDSQKJKZDTSRLD';
 otplib.authenticator.options = {
-  step: 180,
+  step: 240,
   digits: 5
 };
 const opts = otplib.authenticator.options;
@@ -30,6 +32,11 @@ module.exports = {
     if (req.param('password')) {
       password = req.param('password');
     }
+    let cnic;
+    if (req.param('cnic')) {
+      let c = req.param('cnic');
+      cnic = c.slice(0, 5) + '-' + c.slice(5, 12) + '-' + c.slice(12, 13);
+    }
 
     const process = async () => {
 
@@ -41,9 +48,9 @@ module.exports = {
         throw new CustomError('This mobile number is  already in use', {
           status: 403
         });
-      if (req.param('cnic') != null || req.param('cnic') != undefined) {
+      if (cnic != null || cnic != undefined) {
         const checkCustomerCnic = await Customers.count({
-          cnic: req.param('cnic')
+          cnic: cnic
         });
 
         if (checkCustomerCnic > 0)
@@ -63,10 +70,10 @@ module.exports = {
         'password': password,
         'mobile': req.param('mobile'),
         'username': req.param('mobile').substr(1, req.param('mobile').length),
-        'cnic': req.param('cnic'),
-        'status_id': req.param('cnic') == null || req.param('cnic') == undefined ? Status.PENDING : Status.ACTIVE,
-        'createdBy': req.param('createdBy') == null || req.param('createdBy') == undefined ? req.token.user.id : req.param('createdBy') , // current logged in user id
-        'customer_verified': (req.param('cnic') == null || req.param('cnic') == undefined) &&
+        'cnic': cnic,
+        'status_id': cnic == null || cnic == undefined ? Status.PENDING : Status.ACTIVE,
+        'createdBy': req.param('createdBy') == null || req.param('createdBy') == undefined ? req.token.user.id : req.param('createdBy'), // current logged in user id
+        'customer_verified': (cnic == null || cnic == undefined) &&
           (req.param('verifyManually') == null || req.param('verifyManually') == undefined || checkNumberTF < 1) ? false : true,
         'manually_mobile_verified': req.param('verifyManually'),
       }).fetch();
@@ -80,6 +87,20 @@ module.exports = {
             status_id: Status.ACTIVE,
             createdBy: req.token.user.id, // current logged in user id
           });
+          if (i == 1 && (checkNumberTF >= 1 || req.param('verifyManually') == true)) {
+            const newAcount = await Account.create({
+              'name': newCustomer.username,
+              'root_type': Account.INCOME,
+              'account_type': Account.CASH,
+              'account_number': 0,
+              'is_group': false,
+              'status_id': Status.ACTIVE,
+            }).fetch();
+
+            if (newAcount) {
+              await Account.addToCollection(newAcount.id, 'parent', 99);
+            }
+          }
         }
         return newCustomer;
       }
@@ -90,6 +111,64 @@ module.exports = {
       .then(res.ok)
       .catch(err => util.errorResponse(err, res));
   },
+  customerUsernameList: function (req, res) {
+    const getCustomers = async () => {
+
+      const customers = await Customers.find({
+        where: { status_id: { '!=': Status.DELETED }, },
+        select: ['username' , 'first_name','last_name']
+      });
+      if (customers.length < 1) {
+        throw new CustomError('customer not found', {
+          status: 403
+        });
+      }
+      return customers;
+    }
+
+    getCustomers()
+      .then(res.ok)
+      .catch(err => util.errorResponse(err, res));
+  },
+  customerReport: async function (req, res) {
+
+    const customer = await Customers.find(
+      {
+        where: {
+          status_id: { '!=': Status.DELETED },
+
+        },
+        limit: 10
+
+      }
+
+    );
+    resObj = {
+      customer: customer,
+    }
+    // console.log(customer);
+    // return res.ok(resObj);
+    var data = {
+      template: { 'shortid': 'HJfm6LPNQ' },
+      options: {
+        preview: true,
+
+      },
+      data: resObj,
+
+    }
+    var options = {
+      // uri: 'https://hl.jsreportonline.net/api/report'
+      uri: 'http://localhost:5488/api/report',
+      method: 'POST',
+      json: data,
+
+    }
+
+    request(options).pipe(res);
+
+  },
+
   fileUpload: async function (req, res) {
     if (!req.param('id')) {
       return res.badRequest("Id is required");
@@ -125,9 +204,10 @@ module.exports = {
         const docType = await RejectDoc.findOne({ connection: connection.id });
         if (docType) {
           if (docType.rejection_type == 1 || docType.rejection_type == 0) {
-            const checkConnRenewal = await ConnRenewal.count({ connection: connection.id });
+
+            const invoiceCount = await Invoices.count({ customers: connection.customers, paid: true, status_id: Status.ACTIVE });
             await Connection.update({ id: connection.id })
-              .set({ status_id: checkConnRenewal >= 1 ? Status.ACTIVE : Status.PENDING });
+              .set({ status_id: invoiceCount > 0 ? Status.ACTIVE : Status.PENDING });
             await RejectDoc.destroy({ connection: connection.id });
           }
         }
@@ -149,6 +229,12 @@ module.exports = {
   getToken: async function (req, res) {
     if (!(req.param('mobile')) || isNaN(req.param('mobile')))
       return res.badRequest('mobile a valid request');
+    const checkCustomerMobile = await Customers.count({
+      id: req.param('id') ? { '!=': req.param('id') } : undefined, mobile: req.param('mobile')
+    });
+
+    if (checkCustomerMobile > 0)
+      return res.badRequest('mobile number is already in use of an other customer');
 
     const token = otplib.authenticator.generate(secret);
     const result = await util.sendSMS(req.param('mobile'), token + ' is your verification code.');
@@ -192,7 +278,7 @@ module.exports = {
     return res.json({ validity: isValid });
 
   },
-  find: async function (req, res) {
+  find: function (req, res) {
     var params = req.allParams(),
       params = _.defaults(params, {
         filters: [],
@@ -236,7 +322,7 @@ module.exports = {
     let queryObject = {
       where: {
         status_id: { '!=': Status.DELETED },
-        createdBy: req.token.user.role.id !== 1 ? req.token.user.id : undefined
+        createdBy: req.token.user.role.id == 2 ? req.token.user.id : undefined
       },
       // limit: parseInt(params.perPage),
       // skip:parseInt(params.perPage) * parseInt(params.page - 1),
@@ -256,7 +342,7 @@ module.exports = {
       const customers_count = await Customers.count({
         where: {
           status_id: { '!=': Status.DELETED },
-          createdBy: req.token.user.role.id !== 1 ? req.token.user.id : undefined
+          createdBy: req.token.user.role.id == 2 ? req.token.user.id : undefined
         }
       });
       if (customers_count < 1) {
@@ -265,12 +351,18 @@ module.exports = {
         });
       }
 
-      const customers = await Customers.find(queryObject).populate('customerverify');
-      if (!customers) {
+      const customers = await Customers.find(queryObject).populate('customerverify').populate('createdBy');
+      if (customers.length < 1) {
         throw new CustomError('customer not found', {
           status: 403
         });
       }
+      // let customerList= [];
+      // for(let c of customers){
+      //   const cnic = c.cnic.slice(0,5)+'-'+c.cnic.slice(5,12)+'-'+c.cnic.slice(12,13);
+      //   c.cnic = cnic;
+      //   customerList.push(c);
+      // }
       const responseObject = {
         customers: customers,
         totalCount: customers_count,
@@ -349,16 +441,32 @@ module.exports = {
     if (findDoc.length < 1) {
       return res.status(403).send('customer for new connection not found')
     }
-    let docArr = []
+    let docArr = [];
     for (let d of findDoc) {
       docArr.push(d.file_of_id);
     }
+    const invoice = await Invoices.find({
+      where: { status_id: { '!=': Status.DELETED } },
+      select: ['customers']
+    });
+    let invoiceArr = [];
+    for (const i of invoice) {
+      invoiceArr.push(i.customers);
+    }
+    const cv = await CustomerVerify.find({ where: { doc_type: CustomerVerify.MOBILE, is_verified: true }, select: ['customers'] });
+    let cvArr = [];
+    for (const c of cv) {
+      cvArr.push(c.customers);
+    }
+
+    let finalCustomer = _.intersection(invoiceArr, docArr);
+    finalCustomer = _.intersection(finalCustomer, cvArr);
     let queryObject = {
       where: {
         status_id: { '!=': Status.DELETED },
         customer_verified: true,
-        id: { nin: customerArr, in: docArr },
-        createdBy: req.token.user.role.id !== 1 ? req.token.user.id : undefined
+        id: { nin: customerArr, in: finalCustomer },
+        createdBy: req.token.user.role.id == 2 ? req.token.user.id : undefined
       },
       // limit: parseInt(params.perPage),
       // skip:parseInt(params.perPage) * parseInt(params.page - 1),
@@ -380,7 +488,7 @@ module.exports = {
           status_id: { '!=': Status.DELETED },
           customer_verified: true,
           id: { nin: customerArr, in: docArr },
-          createdBy: req.token.user.role.id !== 1 ? req.token.user.id : undefined
+          createdBy: req.token.user.role.id == 2 ? req.token.user.id : undefined
         }
       });
       if (customers_count < 1) {
@@ -388,7 +496,8 @@ module.exports = {
           status: 403
         });
       }
-      const customers = await Customers.find(queryObject);
+
+      const customers = await Customers.find(queryObject).populate('invoices');
       if (!customers) {
         throw new CustomError('customer not found', {
           status: 403
@@ -420,7 +529,7 @@ module.exports = {
     };
 
     const getCustomer = async () => {
-      let customer = await Customers.findOne(queryObject);
+      let customer = await Customers.findOne(queryObject).populate('customerverify');
       let files = await Documents.find({
         where: { file_of: 'customer', file_of_id: customerId, status_id: { '!=': Status.DELETED } }
       });
@@ -552,11 +661,11 @@ module.exports = {
 
     const updateCustomer = async () => {
 
-      const oldCustomer = await Customers.count({
+      const oldCustomer = await Customers.findOne({
         id: customerId
       });
 
-      if (oldCustomer < 1) {
+      if (!oldCustomer) {
         throw new CustomError('Invalid Customer  Id', {
           status: 403
         });
@@ -571,15 +680,21 @@ module.exports = {
         customer.last_name = req.param('last_name');
       }
       if (req.param('cnic') != undefined && _.isString(req.param('cnic'))) {
+        let c = req.param('cnic');
+        if (!c.includes('-')) {
+          c = c.slice(0, 5) + '-' + c.slice(5, 12) + '-' + c.slice(12, 13);
+        }
+        // const cnic = c.slice(0,5)+'-'+c.slice(5,12)+'-'+c.slice(12,13);
+        // console.log(c,cnic);
         const checkCustomerCnic = await Customers.count({
-          id: { '!=': customerId }, cnic: req.param('cnic')
+          id: { '!=': customerId }, cnic: c
         });
 
         if (checkCustomerCnic > 0)
           throw new CustomError('This cnic number is  already in exist.', {
             status: 403
           });
-        customer.cnic = req.param('cnic');
+        customer.cnic = c;
       }
       if (req.param('email') != undefined && _.isString(req.param('email'))) {
         customer.email = req.param('email');
@@ -587,7 +702,7 @@ module.exports = {
       if (req.param('username') != undefined && _.isString(req.param('username'))) {
         customer.username = req.param('username');
       }
-      if (req.param('password') != undefined && _.isNumber(req.param('password'))) {
+      if (req.param('password') != undefined && _.isString(req.param('password'))) {
         customer.password = req.param('password');
       }
       if (req.param('mobile') != undefined && _.isString(req.param('mobile'))) {
@@ -603,10 +718,43 @@ module.exports = {
           mobile: parseInt(req.param('mobile').substr(1, req.param('mobile').length)),
           status_id: Status.APPROVED
         });
-        if (checkNumberTF > 1 && req.param('cnic') != null || req.param('verifyManually'))
-          customer.customer_verified = true,
-            customer.mobile = req.param('mobile');
-        customer.username = req.param('mobile').substr(1, req.param('mobile').length)
+
+        await CustomerVerify.update({ customers: customerId, doc_type: CustomerVerify.MOBILE })
+          .set({ is_verified: (checkNumberTF > 0 || req.param('verifyManually')) ? true : false });
+        if ((checkNumberTF > 0 || req.param('verifyManually') && req.param('cnic') != null)) {
+          customer.customer_verified = true;
+
+        }
+        if (checkNumberTF > 0 || req.param('verifyManually')) {
+
+          const newAcount = await Account.create({
+            'name': req.param('mobile').substr(1, req.param('mobile').length),
+            'root_type': Account.INCOME,
+            'account_type': Account.CASH,
+            'account_number': 0,
+            'is_group': false,
+            'status_id': Status.ACTIVE,
+          }).fetch();
+
+          if (newAcount) {
+            await Account.addToCollection(newAcount.id, 'parent', 99);
+          }
+        }
+        customer.mobile = req.param('mobile');
+        customer.username = req.param('mobile').substr(1, req.param('mobile').length);
+      }
+      if (req.param('verifyManually') != undefined && _.isBoolean(req.param('verifyManually'))) {
+        if (req.param('mobile')) {
+          const checkNumberTF = await TokenVerify.count({
+            mobile: parseInt(req.param('mobile').substr(1, req.param('mobile').length)),
+            status_id: Status.APPROVED
+          });
+
+          await CustomerVerify.update({ customers: customerId, doc_type: CustomerVerify.MOBILE })
+            .set({ is_verified: (checkNumberTF > 0 || req.param('verifyManually')) ? true : false });
+        }
+        customer.manually_mobile_verified = req.param('verifyManually');
+
       }
       if (req.param('status_id') != undefined && _.isNumber(req.param('status_id'))) {
         customer.status_id = req.param('cnic') == null ? Status.PENDING : req.param('status_id');
@@ -614,7 +762,7 @@ module.exports = {
       else
         customer.status_id = req.param('cnic') == null ? Status.PENDING : Status.ACTIVE;
 
-        
+
 
 
       const updatedCustomer = await Customers.update({

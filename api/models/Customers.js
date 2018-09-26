@@ -72,6 +72,10 @@ module.exports = {
             collection: 'customerverify',
             via: 'customers'
         },
+        invoices: {
+            collection: 'invoices',
+            via: 'customers'
+        },
 
     },
 

@@ -25,14 +25,14 @@ module.exports = {
         packages: req.param('package_id'),
       }
     }
-    const countDP = await DealerPackages.count(queryObject);
-    if (countDP > 0) {
-      throw new CustomError('Record already exist.', {
-        status: 403
-      });
-    }
-    const process = async () => {
 
+    const process = async () => {
+      const countDP = await DealerPackages.count(queryObject);
+      if (countDP > 0) {
+        throw new CustomError('Record already exist.', {
+          status: 403
+        });
+      }
       const newDealerPackages = await DealerPackages.create({
         'dealer': req.param('dealer_id'),
         'packages': req.param('package_id'),
@@ -51,7 +51,7 @@ module.exports = {
       .then(res.ok)
       .catch(err => util.errorResponse(err, res));
   },
-  find: function (req, res) {
+  find: async function (req, res) {
     var params = req.allParams(),
       params = _.defaults(params, {
         filters: [],
@@ -91,27 +91,27 @@ module.exports = {
         });
       }
     }
-   
+
     let queryObject
-    if (req.token.user.role.id == 2 ) {
+    if (req.token.user.role.id == 2) {
       queryObject = {
         where: { dealer: req.token.user.id, status_id: { '!=': Status.DELETED } },
-        // // limit: parseInt(params.per_page),
-        // sort: '',
+
       };
     }
-    else if(req.param('dealer_id')){
-      queryObject = {
-        where: {dealer: parseInt(req.param('dealer_id')), status_id: { '!=': Status.DELETED } },
-        // // limit: parseInt(params.per_page),
-        // sort: '',
-      };
+    else if (req.param('dealer_id')) {
+      const user = await User.findOne({ id: req.param('dealer_id') });
+      if (user) {
+        queryObject = {
+          where: { dealer: user.role == 1 || user.role == 6 ? undefined : parseInt(req.param('dealer_id')), status_id: { '!=': Status.DELETED } },
+
+        };
+      }
     }
-    else{
+    else {
       queryObject = {
         where: { dealer: req.token.user.id, status_id: { '!=': Status.DELETED } },
-        // // limit: parseInt(params.per_page),
-        // sort: '',
+
       };
     }
     // if (params.sort && _.indexOf(sortable, params.sort) > -1) {
@@ -124,14 +124,29 @@ module.exports = {
     }];
 
     const getDealerPackages = async () => {
-
-      const DealerPackages_count = await DealerPackages.count({where: { status_id: { '!=': Status.DELETED } }});
-      if (DealerPackages_count < 1) {
-        throw new CustomError('DealerPackages not found', {
-          status: 403
-        });
+      let dealerPackages = [];
+      let DealerPackages_count;
+      if (queryObject.where.dealer == undefined) {
+        const package = await Packages.find({ where: { status_id: { '!=': Status.DELETED } } });
+        if(package.length <=0){
+          throw new CustomError('DealerPackages not found', {
+            status: 403
+          });
+        }
+        DealerPackages_count = package.length;
+        for(const p of package){
+          dealerPackages.push({packages:p , price:p.cost_price});
+        }
       }
-      let dealerPackages = await DealerPackages.find(queryObject).populate('dealer').populate('packages');
+      else {
+        DealerPackages_count = await DealerPackages.count({ where: { status_id: { '!=': Status.DELETED } } });
+        if (DealerPackages_count < 1) {
+          throw new CustomError('DealerPackages not found', {
+            status: 403
+          });
+        }
+        dealerPackages = await DealerPackages.find(queryObject).populate('dealer').populate('packages');
+      }
       if (dealerPackages.length < 1) {
         throw new CustomError('DealerPackages not found', {
           status: 403

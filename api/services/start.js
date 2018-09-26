@@ -1,6 +1,6 @@
 
 var fs = require('fs');
-module.exports.addRouts = function () {
+module.exports.addRoutes = function () {
     fs.readFile('./config/routes.js', async (err, data) => {
         if (err) throw err;
         for (let d of data.toString().split('\n')) {
@@ -20,35 +20,35 @@ module.exports.addRouts = function () {
                 }
                 last_index = str_url.lastIndexOf('/')
                 table_name = str_url.slice(1, last_index);
-                operation = str_url.slice(last_index+1 , str_url.length);
+                operation = str_url.slice(last_index + 1, str_url.length);
                 switch (operation) {
                     case 'create':
                         description = operation + ' ' + table_name;
                         break;
                     case 'findOne':
-                        description ='get one ' + table_name + ' by id';
+                        description = 'get one ' + table_name + ' by id';
                         break;
                     case 'find':
-                        description ='get all ' + table_name;
+                        description = 'get all ' + table_name;
                         break;
                     case 'update':
-                        description ='update ' + table_name + ' by id';
+                        description = 'update ' + table_name + ' by id';
                         break;
                     case 'delete':
-                        description ='delete ' + table_name + ' by id';
+                        description = 'delete ' + table_name + ' by id';
                         break;
                     case 'login':
                         description = table_name + ' login by mobile and password';
                         break;
                     case 'logout':
-                        description =table_name + ' logout by id';
+                        description = table_name + ' logout by id';
                         break;
                     default:
                         break;
                 }
 
                 var newOrExistingRecord = await Routes.findOrCreate(
-                    { end_point: str_url,status_id: Status.ACTIVE, }
+                    { end_point: str_url, status_id: Status.ACTIVE, }
                     , { end_point: str_url, description: description, status_id: Status.ACTIVE }
                 );
                 if (newOrExistingRecord) {
@@ -146,43 +146,35 @@ module.exports.addAccount = function () {
     })
 },
 
-module.exports.connectionCheck = async function(){
-    const connection = await Connection.find({
-        where: {status_id: Status.IN_REVIEW}
-    });
+    module.exports.connectionCheck = async function () {
+        const connection = await Connection.find({
+            where: { status_id: { nin: [Status.DELETED, Status.REJECTED, Status.PACKAGE_UPDATED] } }
+        });
 
-    for(let c of connection){
-        const account = await Account.find({where:{name : c.customers.username}}).limit(1);
-        if(account){
+        for (let c of connection) {
+            const invoiceCount = await Invoices.count({ customers: c.customers, paid: true, status_id: Status.ACTIVE });
             await Connection.update({
                 id: c.id
-              }, {
-                  status_id: Status.ACTIVE
+            }, {
+                    status_id: invoiceCount > 0 ? Status.ACTIVE : Status.PAID
                 });
-        }
-        else{
-            await Connection.update({
-                id: c.id
-              }, {
-                  status_id: Status.PENDING
-                });
-        }
-    }
-},
 
-module.exports.startCronJobs = async function(){
-    let queryObject = {
-        where: { status_id: { '!=': Status.DELETED } },
-        sort: 'id ASC',
-      };
-      const crons = await Notify.find(queryObject);
-    
-      if (crons) {
-        for (const element of crons) {
-            util.cronStart(element.id, element.cron_job_time, element.expires_in);
-          };
-      }
-      //console.log(corns);
-     
-    
-} 
+        }
+    },
+
+    module.exports.startCronJobs = async function () {
+        let queryObject = {
+            where: { status_id: { '!=': Status.DELETED } },
+            sort: 'id ASC',
+        };
+        const crons = await Notify.find(queryObject);
+
+        if (crons) {
+            for (const element of crons) {
+                util.cronStart(element.id, element.cron_job_time, element.expires_in);
+            };
+        }
+        //console.log(corns);
+
+
+    } 
