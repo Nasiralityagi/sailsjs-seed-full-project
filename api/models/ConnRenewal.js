@@ -9,6 +9,11 @@ module.exports = {
 
   attributes: {
 
+    'serial_number': {
+      'type': 'number',
+      // 'required': true
+      allowNull:true
+    },
     'activation_date': {
       'type': 'ref',
       'required': true,
@@ -19,6 +24,11 @@ module.exports = {
       'type': 'ref',
       'required': true,
       'columnName': 'expiration_date',
+      'columnType': "datetime"
+    },
+    'billing_date': {
+      'type': 'ref',
+      'required': true,
       'columnType': "datetime"
     },
     'renewal_price': {
@@ -36,6 +46,11 @@ module.exports = {
       // 'required': true,
       'defaultsTo': 1
     },
+    'is_advance': {
+      'type': 'boolean',
+      // 'required': true,
+      'defaultsTo': true
+    },
     // association 
 
     'connection': {
@@ -43,9 +58,8 @@ module.exports = {
       'model': 'connection',
       'required': true
     },
-    'user': {
-      'columnName': 'updated_by_user_id',
-      'model': 'user',
+    'packages': {
+      'model': 'packages',
     },
 
     // function

@@ -47,7 +47,6 @@ module.exports = {
         'long': req.param('long'),
         'customers': req.param('customers'),
         'packages': req.param('packages'),
-        'new_package': req.param('packages'),
         'basestation': req.param('basestation_id'),
         'salesman': req.param('salesman_id'),
         'dealer': customer.createdBy,
@@ -59,11 +58,12 @@ module.exports = {
       }).fetch();
 
       if (newConnection) {
-        const invoice = await Invoices.findOne({ customers: newConnection.customers });
+        const invoice = await Invoices.findOne({ id: req.param('invoices'), customers: newConnection.customers });
         if (invoice) {
 
           const activation_date = moment();
-          const expiration_date = moment(activation_date).add(1, 'M');
+          const billing_date = moment(activation_date).add(1, 'M');
+          const expiration_date = moment(activation_date).add(1, 'M').subtract(1, 'd');
           let cost_price;
           let connection = await Connection.findOne({ id: newConnection.id }).populate('packages');
           if (connection.packages)
@@ -71,22 +71,29 @@ module.exports = {
           const renewConn = await ConnRenewal.create({
             'activation_date': activation_date.toDate(),
             'expiration_date': expiration_date.toDate(),
+            'billing_date' : billing_date.toDate(),
             'renewal_price': invoice.total_price,
             'cost_price': cost_price,
-            'status_id': invoice.paid ? Status.PAID : Status.UNPAID,
+            'is_advance': false,
+            'status_id': Status.PENDING,
             'connection': newConnection.id,
-            'user': req.token.user.id,
+            'packages': newConnection.packages,
             'createdBy': req.token.user.id
           }).fetch();
           // if(invoice.paid){
-          //   await sails.helpers.makeConnectionPayment(renewConn.id, connection.id, renewConn.renewal_price , renewConn.cost_price ,renewConn.createdBy)
-          //       .intercept('error', () => {
-          //         throw new CustomError('error while connection recharge.', {
-          //           status: 403
-          //         });
-          //       });
+          // await sails.helpers.makeConnectionPayment(connection.id, renewConn.renewal_price,
+          //   renewConn.cost_price, connection.dealer == 1 ? 1 : 3, renewConn.createdBy)
+          //   .intercept('error', () => {
+          //      ConnRenewal.update({
+          //       id: renewConn.id
+          //     }, { status_id: Status.PAID });
+          //     throw new CustomError('error while connection recharge.', {
+          //       status: 403
+          //     });
+          //   });
           // }
         }
+
         return newConnection;
       }
       throw new CustomError('Some error occurred. Please contact support team for help. ');
@@ -139,14 +146,14 @@ module.exports = {
     let queryObject;
     if (req.token.user.role.id == 2) {
       queryObject = {
-        where: { status_id: { '!=': Status.DELETED }, dealer: req.token.user.id },
+        where: { status_id: { nin: [Status.DELETED] }, dealer: req.token.user.id },
         // // limit: parseInt(params.per_page),
         sort: '',
       };
     }
     else {
       queryObject = {
-        where: { status_id: { '!=': Status.DELETED } },
+        where: { status_id: { nin: [Status.DELETED] } },
         // // limit: parseInt(params.per_page),
         sort: '',
       };
@@ -156,9 +163,6 @@ module.exports = {
     }
 
     queryObject.where.or = [{
-      // 'router_price': {
-      //   'like': '%' + params.query + '%'
-      // },
       doc_verified: params.doc == '1' ? true : undefined,
     }];
     // if(params.doc == '1'){
@@ -167,6 +171,7 @@ module.exports = {
     // console.log(params, queryObject.where.or , params.query);
     if (params.doc == '1') {
       queryObject.select = ['id', 'connection_price', 'address'];
+
     }
     const getConnection = async () => {
 
@@ -176,7 +181,7 @@ module.exports = {
           status: 403
         });
       }
-      let connection = await Connection.find(queryObject).populate('customers').populate('new_package')
+      let connection = await Connection.find(queryObject).populate('customers').populate('packages')
         .populate('rejectdoc').populate('dealer');
       if (connection.length < 1) {
         throw new CustomError('connection not found', {
@@ -194,6 +199,232 @@ module.exports = {
     }
 
     getConnection()
+      .then(res.ok)
+      .catch(err => util.errorResponse(err, res));
+  },
+  connectionToChange: function (req, res) {
+    var params = req.allParams(),
+      params = _.defaults(params, {
+        filters: [],
+        page: 1,
+        per_page: 20,
+        sort_dir: 'ASC',
+        sort: 'id',
+        query: ''
+      });
+
+    var sortable = ['id'];
+
+    var filters = params.filters;
+
+    if (!filters || !_.isArray(filters)) {
+      filters = [];
+    }
+
+    if (params.page) {
+      if (!parseInt(params.page) || !_.isNumber(parseInt(params.page))) {
+        return res.badRequest({
+          err: 'Invalid page field value'
+        });
+      }
+    }
+    if (params.per_page) {
+      if (!parseInt(params.per_page) || !_.isNumber(parseInt(params.per_page))) {
+        return res.badRequest({
+          err: 'Invalid per_page field value'
+        });
+      }
+    }
+    if (params.query) {
+      if (!_.isString(params.query)) {
+        return res.badRequest({
+          err: 'Invalid search_term field value'
+        });
+      }
+    }
+    let queryObject;
+    if (req.token.user.role.id == 2) {
+      queryObject = {
+        where: { doc_verified: true, requested_status_id: { nin: [Status.INACTIVE] }, status_id: { in: [Status.ACTIVE], }, dealer: req.token.user.id },
+        // // limit: parseInt(params.per_page),
+        sort: '',
+      };
+    }
+    else {
+      queryObject = {
+        where: { doc_verified: true, status_id: { in: [Status.ACTIVE] }, requested_status_id: { nin: [Status.INACTIVE] } },
+        // // limit: parseInt(params.per_page),
+        sort: '',
+      };
+    }
+    if (params.sort && _.indexOf(sortable, params.sort) > -1) {
+      queryObject.sort = params.sort + ' ' + params.sort_dir;
+    }
+    queryObject.select = ['id', 'connection_price', 'address', 'status_id'];
+
+    const getConnection = async () => {
+
+      const Connection_count = await Connection.count({
+        where: {
+          requested_status_id: { nin: [Status.INACTIVE] },
+          status_id: { in: [Status.ACTIVE, params.block == '1' ? Status.INACTIVE : undefined], }
+        }
+      });
+      if (Connection_count < 1) {
+        throw new CustomError('connection not found', {
+          status: 403
+        });
+      }
+
+      let connList = [];
+      if (params.block == '1') {
+        queryObject.where.status_id.in.push(Status.INACTIVE);
+      }
+      if (params.for == 'password-change') {
+        connList = await ChangePassword.find({ status_id: Status.PENDING });
+      }
+      else if (params.for == 'change-mac') {
+        connList = await ChangeMac.find({ status_id: Status.PENDING });
+      }
+      else if (params.for == 'change-package') {
+        connList = await ChangePackage.find({ status_id: Status.PENDING });
+      }
+      const renewList = await ConnRenewal.find({ status_id: Status.PAID });
+      connList.push(...renewList);
+      let connArr = [];
+      for (const c of connList) {
+        // const pos = myArray.map(function(e) { return e.hello; }).indexOf('stevie');
+        connArr.push(c.connection);
+      }
+      queryObject.where.id = { nin: connArr };
+      let connection = await Connection.find(queryObject).populate('customers').populate('packages')
+        .populate('dealer');
+      if (connection.length < 1) {
+        throw new CustomError('connection not found', {
+          status: 403
+        });
+      }
+      const responseObject = {
+        connection: connection,
+        totalCount: Connection_count,
+      };
+      return responseObject;
+    }
+
+    getConnection()
+      .then(res.ok)
+      .catch(err => util.errorResponse(err, res));
+  },
+  changePackage: async function (req, res) {
+    if (!(req.param('id')) || isNaN(req.param('id')))
+      return res.badRequest('Not a valid conenction id');
+    let ConnectionId = req.param('id');
+    if (!(req.param('old_package')) || isNaN(req.param('old_package')))
+      return res.badRequest('Not a valid old_package');
+
+    if (!(req.param('new_package')) || isNaN(req.param('new_package')))
+      return res.badRequest('Not a valid new_package');
+    if (!(req.param('connection_price')) || isNaN(req.param('connection_price')))
+      return res.badRequest('Not a valid connection_price');
+    let queryObject = {
+      where: { connection: ConnectionId, status_id: { '!=': Status.DELETED } },
+      sort: ['expiration_date DESC'],
+      limit: 1,
+    };
+    let connRenewal = await ConnRenewal.find(queryObject);
+    if (connRenewal.length >= 1) {
+      if (moment.utc(connRenewal[0].updatedAt).format('MM/DD/YYYY') == moment().format('MM/DD/YYYY')) {
+        return res.badRequest({ err: "cannot change package on the same day connection renewed" });
+      }
+    }
+    const process = async () => {
+      const changePackage = await ChangePackage.create({
+        connection: ConnectionId,
+        status_id: Status.PENDING,
+        old_package: req.param('old_package'),
+        new_package: req.param('new_package'),
+        connection_price: req.param('connection_price'),
+        createdBy: req.token.user.id,
+      }).fetch();
+
+      if (!changePackage) {
+        throw new CustomError('error while changing package', {
+          status: 403
+        });
+      }
+      else {
+        await Connection.update({ id: ConnectionId })
+          .set({
+            status_id: Status.PACKAGE_UPDATED,
+            //  connection_price:changePackage.connection_price,
+            //  packages:changePackage.new_package 
+          });
+        return "Package Changed";
+      }
+
+
+    }
+    process()
+      .then(res.ok)
+      .catch(err => util.errorResponse(err, res));
+  },
+  changePassword: function (req, res) {
+    if (!(req.param('id')) || isNaN(req.param('id')))
+      return res.badRequest('Not a valid conenction id');
+    let ConnectionId = req.param('id');
+    if (!(req.param('customer_id')) || isNaN(req.param('customer_id')))
+      return res.badRequest('Not a valid customers id');
+
+    if (!(req.param('new_password')) || isNaN(req.param('new_password')))
+      return res.badRequest('Not a valid new_password');
+
+    const process = async () => {
+      const changePassword = await ChangePassword.create({
+        connection: ConnectionId,
+        status_id: Status.PENDING,
+        new_password: req.param('new_password'),
+        old_password: req.param('old_password'),
+        createdBy: req.token.user.id,
+      }).fetch();
+      if (req.param('inactive') == '1') {
+        await Connection.update({ id: ConnectionId }).set({ requested_status_id: Status.INACTIVE })
+      }
+      else if (req.param('inactive') == '0') {
+        await Connection.update({ id: ConnectionId }).set({ requested_status_id: Status.ACTIVE })
+      }
+      if (!changePassword) {
+        throw new CustomError('error while changing password', {
+          status: 403
+        });
+      }
+      else {
+
+        return "Password Changed";
+      }
+
+
+    }
+    process()
+      .then(res.ok)
+      .catch(err => util.errorResponse(err, res));
+  },
+  clearMac: function (req, res) {
+    if (!(req.param('id')) || isNaN(req.param('id')))
+      return res.badRequest('Not a valid request');
+    let ConnectionId = req.param('id');
+    const process = async () => {
+      const changeMac = await ChangeMac.create({
+        connection: ConnectionId,
+        status_id: Status.PENDING,
+      }).fetch();
+      if (!changeMac) {
+        throw new CustomError('error while changing mac', {
+          status: 403
+        });
+      }
+      return 'cleared Mac'
+    }
+    process()
       .then(res.ok)
       .catch(err => util.errorResponse(err, res));
   },
@@ -266,7 +497,7 @@ module.exports = {
     //   queryObject.select = ['customers'];
     // }
     // console.log(params, queryObject.where.or , params.query);
-    queryObject.select = ['customers', 'registration_date', 'new_package', 'status_id'];
+    queryObject.select = ['customers', 'registration_date', 'packages', 'status_id'];
     const getConnection = async () => {
 
       const Connection_count = await Connection.count({ where: { status_id: { '!=': Status.DELETED } } });
@@ -275,7 +506,7 @@ module.exports = {
           status: 403
         });
       }
-      let connection = await Connection.find(queryObject).populate('customers').populate('new_package')
+      let connection = await Connection.find(queryObject).populate('customers').populate('packages')
         .populate('rejectdoc').populate('dealer');
       if (connection.length < 1) {
         throw new CustomError('connection not found', {
@@ -288,9 +519,9 @@ module.exports = {
         connectionList.id = c.id;
         connectionList.username = c.customers.username;
         connectionList.cnic = c.customers.cnic;
-        connectionList.package = c.new_package.package_name;
+        connectionList.package = c.packages.package_name;
         connectionList.customer = c.customers.first_name;
-        connectionList.registration_date = moment(c.registration_date).format('MM/DD/YYYY');
+        connectionList.registration_date = moment(c.registration_date).format('DD/MM/YYYY');
         connectionList.dealer = c.dealer.first_name
         connectionList.status_id = c.status_id
         cList.push(connectionList);
@@ -317,8 +548,7 @@ module.exports = {
       where: { id: ConnectionId, status_id: { '!=': Status.DELETED } }
     };
     const getConnection = async () => {
-      let connection = await Connection.findOne(queryObject).populate('customers')
-        .populate('new_package').populate('packages')
+      let connection = await Connection.findOne(queryObject).populate('customers').populate('packages')
         .populate('rejectdoc').populate('dealer');
 
       if (connection) {
@@ -328,7 +558,7 @@ module.exports = {
         if (dFiles.length > 0)
           connection.regForm = filePath.fileUrl(dFiles[0].file_path);
 
-        const invoice = await Invoices.findOne({ customers: connection.customers.id });
+        const invoice = await Invoices.findOne({ customers: connection.customers.id, packages: { '!=': null } });
         connection.invoices = [invoice];
         return connection;
       }
@@ -372,13 +602,11 @@ module.exports = {
         if (docType) {
           if (docType.rejection_type == 2) {
             //change connection status
-            const conn = await Connection.findOne({ id: ConnectionId });
-            const invoiceCount = await Invoices.count({ customers: conn.customers, paid: true, status_id: Status.ACTIVE });
 
             await Connection.update({
-              id: conn.id
+              id: ConnectionId
             }, {
-                status_id: invoiceCount > 0 ? Status.ACTIVE : Status.PENDING,
+                status_id: Status.PENDING,
               });
 
           }
@@ -452,17 +680,8 @@ module.exports = {
       }
 
       if (req.param('packages') != undefined && _.isNumber(req.param('packages'))) {
-        // connection.packages = req.param('package_id');
-        const oldConn = await Connection.findOne({
-          id: ConnectionId,
-          new_package: { nin: [req.param('packages')] },
-        });
+        connection.packages = req.param('package_id');
 
-        if (oldConn) {
-          connection.packages = oldConn.new_package;
-          connection.new_package = req.param('packages');
-          connection.status_id = Status.PACKAGE_UPDATED;
-        }
 
       }
       if (req.param('salesman_id') != undefined && _.isNumber(req.param('salesman_id'))) {
@@ -477,8 +696,8 @@ module.exports = {
       if (req.param('installed_by') != undefined && _.isNumber(req.param('installed_by'))) {
         connection.installed_by = req.param('installed_by');
       }
-      if (req.param('registration_date') != undefined && _.isDate(req.param('registration_date'))) {
-        connection.registration_date = req.param('registration_date');
+      if (req.param('registration_date') != undefined) {
+        connection.registration_date = moment(req.param('registration_date')).toDate();
       }
       if (req.param('connection_price') != undefined && _.isNumber(req.param('connection_price'))) {
         connection.connection_price = req.param('connection_price');
@@ -486,17 +705,20 @@ module.exports = {
       if (req.param('status_id') != undefined && _.isNumber(req.param('status_id'))) {
         connection.status_id = req.param('status_id');
       }
+      if (req.param('in_review') != undefined && _.isBoolean(req.param('in_review'))) {
+        connection.in_review = req.param('in_review');
+      }
       if (req.param('doc_verified') != undefined && _.isBoolean(req.param('doc_verified'))) {
         connection.doc_verified = req.param('doc_verified');
         if (connection.doc_verified) {
           await CustomerVerify.update({ doc_type: CustomerVerify.CNIC, is_verified: false, customers: req.param('customers') })
             .set({ is_verified: true });
-          const conn = await Connection.findOne({ id: ConnectionId });
-          const invoiceCount = await Invoices.count({ customers: conn.customers, paid: true, status_id: Status.ACTIVE });
+          // const conn = await Connection.findOne({ id: ConnectionId });
+          // const invoiceCount = await Invoices.count({ customers: conn.customers, paid: true, packages: { '!=': null } });
           await Connection.update({
-            id: conn.id
+            id: ConnectionId
           }, {
-              status_id: invoiceCount > 0 ? Status.ACTIVE : Status.PENDING,
+              status_id: Status.PENDING,
             });
           await RejectDoc.destroy({ connection: ConnectionId });
           await Customers.update({ id: req.param('customers') }).set({ customer_verified: true });
@@ -574,33 +796,240 @@ module.exports = {
   },
   pendingConnection: async function (req, res) {
 
-    queryObject = {
-      where: { status_id: Status.PENDING },
-      // // limit: parseInt(params.per_page),
+    var params = req.allParams(),
+      params = _.defaults(params, {
+        filters: [],
+        page: 1,
+        per_page: 20,
+        sort_dir: 'DESC',
+        sort: 'expiration_date',
+        query: ''
+      });
+
+    var sortable = ['expiration_date'];
+
+    var filters = params.filters;
+
+    if (!filters || !_.isArray(filters)) {
+      filters = [];
+    }
+
+    if (params.page) {
+      if (!parseInt(params.page) || !_.isNumber(parseInt(params.page))) {
+        return res.badRequest({
+          err: 'Invalid page field value'
+        });
+      }
+    }
+    if (params.per_page) {
+      if (!parseInt(params.per_page) || !_.isNumber(parseInt(params.per_page))) {
+        return res.badRequest({
+          err: 'Invalid per_page field value'
+        });
+      }
+    }
+    if (params.query) {
+      if (!_.isString(params.query)) {
+        return res.badRequest({
+          err: 'Invalid search_term field value'
+        });
+      }
+    }
+    let queryObject = {
+      where: { status_id: [Status.PENDING], },
+      // limit: parseInt(params.per_page),
+      sort: '',
+      limit: 1
     };
+    if (params.sort && _.indexOf(sortable, params.sort) > -1) {
+      queryObject.sort = params.sort + ' ' + params.sort_dir;
+    }
+    queryObject.where.or = [{
+      'expiration_date': {
+        'like': '%' + params.query + '%'
+      },
+    }];
 
     const getConnection = async () => {
 
-      const Connection_count = await Connection.count({ where: { status_id: Status.PENDING } });
-      if (!Connection_count) {
+
+      const connRenewal = await ConnRenewal.find(queryObject);
+      if (connRenewal.length < 1) {
+        return connRenewal;
+      }
+
+      // new code
+      const connection = await Connection.find({
+        id: connRenewal[0].connection,
+        status_id: { in: [Status.PENDING, Status.PAID], nin: [Status.DELETED, Status.IN_REVIEW] },
+        doc_verified: true,
+        in_review: false
+      }).limit(1).populate('customers').populate('packages')
+        .populate('salesman').populate('dealer');
+      if (connection.length < 1) {
         throw new CustomError('connection not found', {
           status: 403
         });
       }
-      let connection = await Connection.find(queryObject).populate('customers').populate('basestation').populate('packages')
+      const countConn = await Connection.count({
+        status_id: { in: [Status.PENDING, Status.PAID], nin: [Status.DELETED, Status.IN_REVIEW] },
+        doc_verified: true,
+        in_review: false
+      });
+
+      await Connection.update({
+        id: connection[0].id
+      }, {
+          in_review: true
+        });
+      var CronJob = require('cron').CronJob;
+      let connectionReview = new CronJob({
+        cronTime: '* * * * *', //'* * * * *',
+        onTick: async function () {
+          // console.log('crop job started in connection');
+          const conn = await Connection.findOne({ id: connection[0].id });
+          if (conn.in_review) {
+            await Connection.update({
+              id: connection[0].id
+            }, {
+                in_review: false
+              });
+          }
+          connectionReview.stop();
+          // console.log('cron job stopped');
+        },
+        start: false,
+        timeZone: 'America/Los_Angeles'
+      });
+      connectionReview.start();
+      let response = {
+        connection: connection[0],
+        count: countConn,
+      }
+      response.connection.connRenewalId = connRenewal[0].id;
+      return response;
+
+    }
+
+    getConnection()
+      .then(res.ok)
+      .catch(err => util.errorResponse(err, res));
+  },
+  packageChangeList: async function (req, res) {
+    var params = req.allParams(),
+      params = _.defaults(params, {
+        filters: [],
+        page: 1,
+        per_page: 20,
+        sort_dir: 'DESC',
+        sort: 'expiration_date',
+        query: ''
+      });
+
+    var sortable = ['expiration_date'];
+
+    var filters = params.filters;
+
+    if (!filters || !_.isArray(filters)) {
+      filters = [];
+    }
+
+    if (params.page) {
+      if (!parseInt(params.page) || !_.isNumber(parseInt(params.page))) {
+        return res.badRequest({
+          err: 'Invalid page field value'
+        });
+      }
+    }
+    if (params.per_page) {
+      if (!parseInt(params.per_page) || !_.isNumber(parseInt(params.per_page))) {
+        return res.badRequest({
+          err: 'Invalid per_page field value'
+        });
+      }
+    }
+    if (params.query) {
+      if (!_.isString(params.query)) {
+        return res.badRequest({
+          err: 'Invalid search_term field value'
+        });
+      }
+    }
+    let queryObject = {
+      where: { status_id: [Status.PAID, Status.PENDING, Status.UNPAID], },
+      // limit: parseInt(params.per_page),
+      sort: '',
+      limit: 1
+    };
+    if (params.sort && _.indexOf(sortable, params.sort) > -1) {
+      queryObject.sort = params.sort + ' ' + params.sort_dir;
+    }
+    queryObject.where.or = [{
+      'expiration_date': {
+        'like': '%' + params.query + '%'
+      },
+    }];
+
+    const getConnRenewal = async () => {
+
+
+      const connRenewal = await ConnRenewal.find(queryObject);
+      if (connRenewal.length < 1) {
+        return connRenewal;
+      }
+
+      // new code
+      const connection = await Connection.findOne({
+        id: connRenewal[0].connection,
+        status_id: { in: [Status.PACKAGE_UPDATED], nin: [Status.DELETED, Status.IN_REVIEW] },
+        doc_verified: true,
+        in_review: false
+      }).populate('customers').populate('packages')
         .populate('salesman').populate('dealer');
       if (!connection) {
         throw new CustomError('connection not found', {
           status: 403
         });
-
       }
+      let countConn = await ConnRenewal.count({ where: { status_id: [Status.PAID, Status.PENDING, Status.UNPAID], } });
+      connection.connRenewalId = connRenewal[0].id;
+      await Connection.update({
+        id: connection.id
+      }, {
+          in_review: true
+        });
+      var CronJob = require('cron').CronJob;
+      let connectionReview = new CronJob({
+        cronTime: '* * * * *', //'* * * * *',
+        onTick: async function () {
+          // console.log('crop job started in connection');
+          const conn = await Connection.findOne({ id: connection.id });
+          if (conn.in_review) {
+            await Connection.update({
+              id: connection.id
+            }, {
+                in_review: false
+              });
+          }
+          connectionReview.stop();
+          // console.log('cron job stopped');
+        },
+        start: false,
+        timeZone: 'America/Los_Angeles'
+      });
+      connectionReview.start();
+      response = {
+        connection: connection,
+        count: countConn,
+      }
+      return response;
 
-      return connection;
     }
-    getConnection()
+
+    getConnRenewal()
       .then(res.ok)
       .catch(err => util.errorResponse(err, res));
+
   },
   activeConnection: async function (req, res) {
     if (!req.param('id') || isNaN(req.param('id'))) {
@@ -619,7 +1048,7 @@ module.exports = {
       //   });
       // }
       const queryObjectStatus = {
-        where: { id: ConnectionId, status_id: Status.ACTIVE }
+        where: { id: ConnectionId, status_id: Status.REGISTERED }
       };
       const checkStatus = await Connection.count(queryObjectStatus);
 
@@ -633,7 +1062,7 @@ module.exports = {
       const activeConnection = await Connection.update({
         id: ConnectionId
       }, {
-          status_id: Status.ACTIVE
+          status_id: Status.REGISTERED
         }).fetch();
 
       const queryObject = {
@@ -644,9 +1073,9 @@ module.exports = {
 
       if (activeConnection && connection) {
 
-        await Invoices.update({
-          customers: connection.customers.id
-        }).set({ status_id: Status.ACTIVE });
+        // await Invoices.update({
+        //   customers: connection.customers.id, packages: { '!=': null }
+        // }).set({ status_id: Status.ACTIVE });
         // const newAcount = await Account.create({
         //   'name': connection.customers.username,
         //   'root_type': Account.INCOME,
@@ -724,6 +1153,7 @@ module.exports = {
         'cost_price': connection.packages.cost_price,
         'status_id': Status.PAID,
         'connection': connection.id,
+        'is_advance': true,
         'user': req.token.user.id,
         'createdBy': req.token.user.id, // current logged in user id
       }).fetch();
@@ -774,7 +1204,7 @@ module.exports = {
       await Connection.update({
         id: ConnectionId
       }, {
-          status_id: Status.IN_REVIEW
+          in_review: true
         })
       var CronJob = require('cron').CronJob;
       let connectionReview = new CronJob({
@@ -782,18 +1212,12 @@ module.exports = {
         onTick: async function () {
           // console.log('crop job started in timmer');
           const conn = await Connection.findOne({ id: ConnectionId });
-          if (conn.status_id == Status.IN_REVIEW) {
-            // const checkConnRenewal = await ConnRenewal.count({ connection: ConnectionId, status_id: Status.ACTIVE });
-            // await Connection.update({ id: ConnectionId })
-            //   .set({ status_id: checkConnRenewal >= 1 ? Status.ACTIVE : Status.PENDING });
-            //change connection status
+          if (conn.in_review) {
 
-            const conn = await Connection.findOne({ id: ConnectionId });
-            const invoiceCount = await Invoices.count({ customers: conn.customers, paid: true, status_id: Status.ACTIVE });
             await Connection.update({
-              id: conn.id
+              id: ConnectionId
             }, {
-                status_id: invoiceCount > 0 ? Status.ACTIVE : Status.PENDING,
+                in_review: false
               });
           }
           connectionReview.stop();
@@ -863,18 +1287,19 @@ module.exports = {
     let queryObject = {
       where: {
         doc_verified: false,
+        in_review: false,
         status_id: { in: [Status.PENDING], nin: [Status.DELETED, Status.IN_REVIEW] }
       }
     }
     const findConnection = async () => {
-
+      const count = await Connection.count(queryObject);
       let connection = await Connection.find(queryObject).limit(1).populate('customers');
 
       if (connection.length >= 1) {
         await Connection.update({
           id: connection[0].id
         }, {
-            status_id: Status.IN_REVIEW
+            in_review: true,
           });
         var CronJob = require('cron').CronJob;
         let connectionReview = new CronJob({
@@ -882,10 +1307,10 @@ module.exports = {
           onTick: async function () {
             // console.log('crop job started in connection');
             const conn = await Connection.findOne({ id: connection[0].id });
-            if (conn.status_id == Status.IN_REVIEW) {
+            if (conn.in_review) {
               // const checkConnRenewal = await ConnRenewal.count({ connection: connection[0].id ,  status_id :{'!=':Status.UNPAID}});
               await Connection.update({ id: connection[0].id })
-                .set({ status_id: Status.PENDING });
+                .set({ in_review: false });
             }
             connectionReview.stop();
             // console.log('cron job stopped in find doc');
@@ -917,11 +1342,16 @@ module.exports = {
           });
         }
       }
-      // console.log(connection);  
+      // console.log(connection);
+      if (connection.length >= 1) {
+        response = {
+          connection: connection[0],
+          count: count,
+        }
+        return response;
+      }
 
 
-      if (connection.length >= 1)
-        return connection[0];
       throw new CustomError('No connection found for document verification', {
         status: 403
       });

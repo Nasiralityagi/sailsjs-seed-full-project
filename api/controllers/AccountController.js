@@ -518,17 +518,17 @@ module.exports = {
     let customers;
     switch (req.param('partyOf')) {
       case 'Dealer': {
-        wf_number = 4;
+        wf_number = 5;
         dealers = await User.findOne({ id: req.param('partyOfId') });
         break;
       }
       case 'Customer': {
-        wf_number = 3;
+        wf_number = 6;
         customers = await Customers.findOne({ id: req.param('partyOfId') });
         break;
       }
       case 'Employee': {
-        wf_number = 5;
+        wf_number = 7;
         break;
       }
       default:
@@ -571,35 +571,36 @@ module.exports = {
             data.account = connAccount.length == 0 || connAccount == undefined ? w.account.id : connAccount[0].id;
           }
           else if (w.account.id == 129) {
-            
-              const connAccount = await Account.find({ where: { name: dealers.username } }).limit(1);
-              data.account = connAccount.length == 0 || connAccount == undefined ? w.account.id : connAccount[0].id;
-            
+            const connAccount = await Account.find({ where: { name: dealers.username } }).limit(1);
+            data.account = connAccount.length == 0 || connAccount == undefined ? w.account.id : connAccount[0].id;
+          }
+          else if (w.account.id == 128) {
+            const connAccount = await Account.find({ where: { name: req.token.user.username } }).limit(1);
+            data.account = connAccount.length == 0 || connAccount == undefined ? w.account.id : connAccount[0].id;
           }
           else
             data.account = w.account.id
           let formulaString = w.credit == '0' ? infixToPrefix(w.debit) : infixToPrefix(w.credit);
+    
           let variableArr = formulaString.split(' ');
           for (let v of variableArr) {
             switch (v) {
               case 'amount':
                 formulaString = formulaString.replace('amount', req.param('amount'));
                 break;
-              case 'cost_price':
-                formulaString = formulaString.replace('cost_price', req.param('amount'));
+              case 'company_retail_price':
+                formulaString = formulaString.replace('company_retail_price', 0);
                 break;
-              case 'dealer_price':
-                let dealerPackages = await DealerPackages.findOne({
-                  where: {
-                    id: account.packages.id, status_id: { '!=': Status.DELETED },
-                  }
-                });
-                // console.log('dealerPackages' , dealerPackages)
-                formulaString = formulaString.replace('dealer_price', dealerPackages.price || '0');
+              case 'company_cost_price':
+                formulaString = formulaString.replace('company_cost_price', 0);
                 break;
-              case 'package_price':
-                formulaString = formulaString.replace('package_price', req.param('amount'));
+              case 'dealer_cost_price':
+                formulaString = formulaString.replace('dealer_cost_price', 0);
                 break;
+              case 'dealer_retail_price':
+                formulaString = formulaString.replace('dealer_retail_price', 0);
+                break;
+
               default:
                 break;
             }
@@ -674,6 +675,7 @@ module.exports = {
             'credit': workflowArray[key].credit,
             'against_account': against_account == null ? '' : against_account,
             'reference_type': '',
+            'description' :'Payment made for account',
             'balance': balance,
             'createdBy': req.token.user.id, // current logged in user id
           }).fetch();

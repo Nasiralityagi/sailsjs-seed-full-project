@@ -37,6 +37,7 @@ module.exports = {
         'dealer': req.param('dealer_id'),
         'packages': req.param('package_id'),
         'price': req.param('price'),
+        'retail_price': req.param('retail_price'),
         'status_id': Status.ACTIVE,
         'createdBy': req.token.user.id, // current logged in user id
       }).fetch();
@@ -135,7 +136,7 @@ module.exports = {
         }
         DealerPackages_count = package.length;
         for(const p of package){
-          dealerPackages.push({packages:p , price:p.cost_price});
+          dealerPackages.push({packages:p , price:p.cost_price , retail_price:p.retail_price});
         }
       }
       else {
@@ -223,6 +224,9 @@ module.exports = {
       if (req.param('price') != undefined && _.isNumber(req.param('price'))) {
         dealerPackages.price = req.param('price');
       }
+      if (req.param('retail_price') != undefined && _.isNumber(req.param('retail_price'))) {
+        dealerPackages.retail_price = req.param('retail_price');
+      }
       if (req.param('status_id') != undefined && _.isNumber(req.param('status_id'))) {
         dealerPackages.status_id = req.param('status_id');
       }
@@ -262,13 +266,21 @@ module.exports = {
           status: 403
         });
       }
+      const dp = await DealerPackages.findOne({id:DealerPackagesId});
+      const checkDp = await Invoices.count({packages:dp.packages , createdBy:dp.dealer});
+      if(checkDp > 0){
+        throw new CustomError('This package have an invoice against it.', {
+          status: 403
+        });
+      }
+
 
 
       const deletedDealerPackages = await DealerPackages.destroy({
         id: DealerPackagesId
       }).fetch();
 
-      if (deletedDealerPackages !== 0)
+      if (deletedDealerPackages)
         return 'deleted successfully';
       throw new CustomError('Some error occurred. Please contact development team for help.', {
         status: 403

@@ -398,7 +398,7 @@ module.exports.customerDelete = function () {
 };
 
 
-module.exports.fileUpload = function (file_of, file_of_id, file_name, file , id) {
+module.exports.fileUpload = function (file_of, file_of_id, file_name, file, id) {
 
   return new Promise(async (resolve, reject) => {
     const filePath = '../../assets/images/' + file_of + '/';
@@ -426,35 +426,60 @@ module.exports.fileUpload = function (file_of, file_of_id, file_name, file , id)
 }
 
 module.exports.expireConnection = function () {
-  const cDelete = new CronJob({
-    cronTime: '0 0 * * *',
+  const expireConn = new CronJob({
+    cronTime: '58 23 * * *', // 0 0 * * *
     onTick: async function () {
       const connRenewal = await ConnRenewal.find({
-        where: { status_id: { '!=': Status.DELETED } }
+        where: { status_id: { in: [Status.ACTIVE] }, expiration_date: { '<=': moment().toDate() } }
       });
-
       for (let c of connRenewal) {
-        var dbDate = moment.unix(c.expiration_date / 1000).format('MM/DD/YYYY');
-        var cmpDate = moment().format('MM/DD/YYYY');
-        if (dbDate == cmpDate) {
-          const connRenewalUpdate = await ConnRenewal.update({
+        let diff = moment().diff(c.expiration_date, 'days', false)
+        const grace_period = await GracePeriod.find();
+        diff = diff + 1;
+        let grace_days = grace_period[0].grace_days;
+        // grace_days = grace_days - 1;
+        await Connection.update({ id: c.connection })
+          .set({
+            status_id: diff > grace_days ? Status.TERMINATED : Status.EXPIRED,
+          });
+        if (diff > grace_days) {
+          await ConnRenewal.update({
             id: c.id
-          }, { status_id: Status.EXPIRED }).fetch();
-          if (connRenewalUpdate) {
-            console.log('connection expired with id : ' + connRenewalUpdate.connection);
-          }
+          }, { status_id: Status.EXPIRED });
         }
+        sails.log('connection ' + (diff > grace_days ? 'Terminated' : 'Expired' )+ ' with id : ' + c.connection);
 
       }
     },
     start: false,
     timeZone: 'America/Los_Angeles'
   });
-  cDelete.start();
+  expireConn.start();
 
 };
-
-module.exports.balance_sum = async function (child, balance , index) {
+var fs = require('fs');
+module.exports.jsreport = async function (options , invoiceId) {
+  let fileStream = await fs.createWriteStream('./assets/files/invoice/'+invoiceId+'.pdf')
+  return new Promise(async (resolve, reject) => {
+   
+          fileStream.on('open',async function () {
+            await request(options)
+            .on('response', (response) => {
+              // console.log(response.statusCode);
+              // console.log(response.headers['content-type']);
+              // return resolve(location.dict.location.replace('status' , 'content'));
+            })
+            .on('error', (err) => { return reject(err) }) //throw new Error(err)  })
+            .on('end', () => {console.info('Successfully Wrote Badge Sheet'); })
+            .pipe(fileStream);
+          }).on('error', function (err) {
+            return reject();
+          }).on('finish', function () {
+            return resolve();
+          });
+  });
+};
+module.exports.balance_sum = async function (child, balance, index) {
 
   //   function searchTree(element, matchingTitle){
   //     if(element.title == matchingTitle){
@@ -509,7 +534,7 @@ module.exports.balance_sum = async function (child, balance , index) {
         }).populate('children');
       console.log(next_child);
 
-      return balance + await util.balance_sum(next_child, await sails.helpers.getAccountBalance(child[c].id) , c);
+      return balance + await util.balance_sum(next_child, await sails.helpers.getAccountBalance(child[c].id), c);
     }
   }
   else {

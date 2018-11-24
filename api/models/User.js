@@ -110,10 +110,6 @@ module.exports = {
             collection: 'usersroutes',
             via: 'user'
         },
-        connrenewal: {
-            collection: 'connrenewal',
-            via: 'user'
-        },
         dealermap: {
             collection: 'dealermap',
             via: 'dealer'

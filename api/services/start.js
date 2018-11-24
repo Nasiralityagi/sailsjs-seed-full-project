@@ -146,23 +146,24 @@ module.exports.addAccount = function () {
     })
 },
 
-    module.exports.connectionCheck = async function () {
-        const connection = await Connection.find({
-            where: { status_id: { nin: [Status.DELETED, Status.REJECTED, Status.PACKAGE_UPDATED] } }
-        });
+module.exports.connectionCheck = async function () {
+        // const connection = await Connection.find({
+        //     where: { status_id: { nin: [Status.DELETED, Status.REJECTED, Status.PACKAGE_UPDATED] } }
+        // });
 
-        for (let c of connection) {
-            const invoiceCount = await Invoices.count({ customers: c.customers, paid: true, status_id: Status.ACTIVE });
-            await Connection.update({
-                id: c.id
-            }, {
-                    status_id: invoiceCount > 0 ? Status.ACTIVE : Status.PAID
-                });
+        // for (let c of connection) {
+        //     const invoiceCount = await Invoices.count({ customers: c.customers, packages: { '!=': null }, paid: true, status_id: Status.ACTIVE });
+        //     await Connection.update({
+        //         id: c.id
+        //     }, {
+        //             status_id: invoiceCount > 0 ? Status.ACTIVE : Status.PAID
+        //         });
 
-        }
-    },
+        // }
+        await Connection.update({ where: { in_review: true } }).set({ in_review: false });
+},
 
-    module.exports.startCronJobs = async function () {
+module.exports.startCronJobs = async function () {
         let queryObject = {
             where: { status_id: { '!=': Status.DELETED } },
             sort: 'id ASC',
@@ -177,4 +178,24 @@ module.exports.addAccount = function () {
         //console.log(corns);
 
 
-    } 
+} 
+module.exports.cleanDatabase = async function () {
+    await Account.destroy({id:{'>':140}});
+    await JournalEntryAccount.destroy({});
+    await JournalEntry.destroy({});
+    await InvoiceStock.destroy({});
+    await TokenVerify.destroy({});
+    await CustomerVerify.destroy({});
+    await AccountLedgerEntry.destroy({});
+    await ChangeMac.destroy({});
+    await ChangePackage.destroy({});
+    await ChangePassword.destroy({});
+    await ConnRenewal.destroy({});
+    await Connection.destroy({});
+    await Invoices.destroy({});
+    await Customers.destroy({});
+    
+    console.log('Database cleaned.');
+    return 'Database cleaned.';
+
+} 

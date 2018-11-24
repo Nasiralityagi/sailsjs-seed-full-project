@@ -153,6 +153,7 @@ module.exports = {
                             'credit': newJEA[key].credit,
                             'against_account': against_account == null ? '' : against_account,
                             'reference_type': req.param('reference_type') || '',
+                            'description' : newJournalEntry.user_remarks,
                             'balance': balance
                         });
 

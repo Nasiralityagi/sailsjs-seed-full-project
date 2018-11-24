@@ -16,7 +16,6 @@ module.exports = {
     SHORTLISTED: 8,
     INTERVIEWED: 9,
     CONTACTED: 10,
-    SCREENED: 11,
     DECLINED: 12,
     VIEWED: 13,
     APPROVED: 14,
@@ -26,10 +25,12 @@ module.exports = {
     ACTIVE: 16,
     INACTIVE: 17,
     EXPIRED:45,
+    TERMINATED: 34, 
+    REGISTERED: 11,
 
     // For Transactions
     PAID: 18,
-    FAILED: 19,
+    PARTIAL_PAID: 19,
     FREE: 35,
     CANCELLED: 36,
     UNPAID: 46,
@@ -55,7 +56,7 @@ module.exports = {
     HIRED:31,
     INTERVIEW_REQUESTED:32,
     INTERVIEW_BOOKED:33,
-    BEHAVIOURAL_REQUESTED: 34,
+   
 
     //for templates
     VIDEO_PROFILE_REQUEST: 37,

@@ -1,5 +1,5 @@
 /**
- * DealerPackages.js
+ * Invoices.js
  *
  * @description :: A model definition.  Represents a database table/collection/etc.
  * @docs        :: https://sailsjs.com/docs/concepts/models-and-orm/models
@@ -12,39 +12,50 @@ module.exports = {
     //  ╔═╗╦═╗╦╔╦╗╦╔╦╗╦╦  ╦╔═╗╔═╗
     //  ╠═╝╠╦╝║║║║║ ║ ║╚╗╔╝║╣ ╚═╗
     //  ╩  ╩╚═╩╩ ╩╩ ╩ ╩ ╚╝ ╚═╝╚═╝
-    'dealer':{
-      'columnName': 'dealer_id',
-      'model': 'user',
-      'required' : true,
+    package_price:{
+      type:'ref',
+      columnType:'double',
     },
-    'packages':{
-      'columnName': 'package_id',
-      'model': 'packages',
-      'required' : true,
+    total_price:{
+      type:'ref',
+      columnType:'double',
     },
-    
-    'price': {
-      'type': 'ref',
-       'columnType': 'double'
+    paid_amount:{
+      type:'ref',
+      columnType:'double',
     },
-    'retail_price': {
-      'type': 'ref',
-       'columnType': 'double'
+    paid: {
+      type: 'boolean',
+      defaultsTo:false
+    }, 
+    user_remarks: {
+      type: 'string'
     },
-    'status_id': {
-      'type': 'number',
-       // 'required': true,
-      'defaultsTo': 2
+    status_id: {
+      type: 'number',
+      // 'required': true,
+      defaultsTo: 16
     },
-
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝
 
+    customers:{
+      model:'customers'
+    },
+    packages:{
+      model:'packages'
+    },
+    invoicestock: {
+      collection: 'invoicestock',
+      via: 'invoices'
+    },
+  
 
     //  ╔═╗╔═╗╔═╗╔═╗╔═╗╦╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
     //  ╠═╣╚═╗╚═╗║ ║║  ║╠═╣ ║ ║║ ║║║║╚═╗
     //  ╩ ╩╚═╝╚═╝╚═╝╚═╝╩╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
+    
 
   },
 

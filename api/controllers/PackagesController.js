@@ -21,6 +21,7 @@ module.exports = {
         'bandwidth': req.param('bandwidth'),
         'data_limit': req.param('data_limit'),
         'cost_price': req.param('cost_price'),
+        'retail_price': req.param('retail_price'),
         'status_id': Status.ACTIVE,
         'createdBy': req.token.user.id, // current logged in user id
       }).fetch();
@@ -179,6 +180,9 @@ module.exports = {
         if (req.param('cost_price') != undefined && _.isNumber(req.param('cost_price'))) {
           packages.cost_price = req.param('cost_price');
         }
+        if (req.param('retail_price') != undefined && _.isNumber(req.param('retail_price'))) {
+          packages.retail_price = req.param('retail_price');
+        }
         if (req.param('status_id') != undefined && _.isNumber(req.param('status_id'))) {
           packages.status_id = req.param('status_id');
         }
@@ -216,6 +220,12 @@ module.exports = {
         
         if (checkPackage < 1) {
           throw new CustomError('Invalid Package Id', {
+            status: 403
+          });
+        }
+        const checkDp = await Invoices.count({packages:packagesId});
+        if(checkDp > 0){
+          throw new CustomError('This package have an invoice against it.', {
             status: 403
           });
         }

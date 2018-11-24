@@ -1,5 +1,5 @@
 /**
- * DealerPackages.js
+ * ChangePassword.js
  *
  * @description :: A model definition.  Represents a database table/collection/etc.
  * @docs        :: https://sailsjs.com/docs/concepts/models-and-orm/models
@@ -12,29 +12,22 @@ module.exports = {
     //  ╔═╗╦═╗╦╔╦╗╦╔╦╗╦╦  ╦╔═╗╔═╗
     //  ╠═╝╠╦╝║║║║║ ║ ║╚╗╔╝║╣ ╚═╗
     //  ╩  ╩╚═╩╩ ╩╩ ╩ ╩ ╚╝ ╚═╝╚═╝
-    'dealer':{
-      'columnName': 'dealer_id',
-      'model': 'user',
-      'required' : true,
+    status_id: {
+      type: 'number',
+      // 'required': true,
+      defaultsTo: 16
     },
-    'packages':{
-      'columnName': 'package_id',
-      'model': 'packages',
-      'required' : true,
+    //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
+    //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
+    //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝
+    new_password: {
+      type: 'string',
     },
-    
-    'price': {
-      'type': 'ref',
-       'columnType': 'double'
+    old_password: {
+      type: 'string',
     },
-    'retail_price': {
-      'type': 'ref',
-       'columnType': 'double'
-    },
-    'status_id': {
-      'type': 'number',
-       // 'required': true,
-      'defaultsTo': 2
+    connection: {
+      model: 'connection'
     },
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗

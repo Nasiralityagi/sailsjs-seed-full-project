@@ -25,6 +25,16 @@ module.exports.policies = {
     'login':true,
     'logout':true, 
   },
+  RolePermissions:{
+    findOne:true,
+  },
+  CustomersController:{
+    customerReport:true,
+  },
+  CommonController:{
+    clearDatabase:true,
+    // hello:true
+  }
   // RoutesController:{
   //   'create':true,  
   //   'find':true 

@@ -69,7 +69,8 @@ module.exports.routes = {
   'POST /customer/getToken': 'CustomersController.getToken',
   'POST /customer/verifyToken': 'CustomersController.verifyToken',
   'GET /customer/customerDoc': 'CustomersController.customerDoc',
-
+  'GET /customer/customerReport': 'CustomersController.customerReport',
+  'GET /customer/customerUsernameList': 'CustomersController.customerUsernameList',
   // for DocumentsController
 
    'POST /documents/create': 'DocumentsController.create',
@@ -101,6 +102,13 @@ module.exports.routes = {
 'GET /connection/docFind': 'ConnectionController.docFind',
 'POST /connection/rejectDoc': 'ConnectionController.rejectDoc',
 'POST /connection/increaseTimer': 'ConnectionController.increaseTimer',
+'GET /connection/connectionList': 'ConnectionController.connectionList',
+'GET /connection/packageChangeList': 'ConnectionController.packageChangeList',
+'GET /connection/connectionToChange': 'ConnectionController.connectionToChange',
+'POST /connection/changePassword': 'ConnectionController.changePassword',
+'POST /connection/clearMac': 'ConnectionController.clearMac',
+'POST /connection/changePackage': 'ConnectionController.changePackage',
+
 // for  PackagesController
 
 'POST /package/create': 'PackagesController.create',
@@ -121,6 +129,7 @@ module.exports.routes = {
 'GET /connrenewal/paidConnection': 'ConnRenewalController.paidConnection',
 'GET /connrenewal/expiredConnection': 'ConnRenewalController.expiredConnection',
 'POST /connrenewal/changePackage': 'ConnRenewalController.changePackage',
+'GET /connrenewal/connectionToRenew': 'ConnRenewalController.connectionToRenew',
 
 // for  UsersRoutesController
 
@@ -244,6 +253,8 @@ module.exports.routes = {
 'POST /account/update': 'AccountController.update',
 'DELETE /account/delete': 'AccountController.delete',
 'GET /account/chartOfAccount': 'AccountController.chartOfAccount',
+'POST /account/payment': 'AccountController.payment',
+'GET /account/loggedUserBalance': 'AccountLedgerEntryController.loggedUserBalance',
 
 // for  JournalEntryController
 
@@ -268,9 +279,6 @@ module.exports.routes = {
 'DELETE /workflow/delete': 'WorkflowController.delete',
 'POST /workflow/createMultiple': 'WorkflowController.createMultiple',
 
-// for  EntryController
-
-'POST /entry/create': 'EntryController.create',
 
 // for  RolePermissionsController
 
@@ -281,7 +289,37 @@ module.exports.routes = {
 'DELETE /rolepermissions/delete': 'RolePermissionsController.delete',
 
  
+// for InvoicesController
 
+'POST /invoices/create': 'InvoicesController.create',
+'GET /invoices/find': 'InvoicesController.find',
+'GET /invoices/findOne/:id': 'InvoicesController.findOne',
+'POST /invoices/update': 'InvoicesController.update',
+'DELETE /invoices/delete': 'InvoicesController.delete',
+'POST /invoices/payment': 'InvoicesController.payment',
+'GET /invoices/customerForInvoice': 'InvoicesController.customerForInvoice',
+'POST /invoices/ispackage': 'InvoicesController.isPackage',
+'POST /invoices/print': 'InvoicesController.print',
+
+// for LoginManagerController
+
+'POST /loginmanager/verifyChangePassword': 'LoginManagerController.verifyChangePassword',
+'GET /loginmanager/changePasswordList': 'LoginManagerController.changePasswordList',
+'GET /loginmanager/changeMacList': 'LoginManagerController.changeMacList',
+'POST /loginmanager/verifyChangeMac': 'LoginManagerController.verifyChangeMac',
+'GET /loginmanager/changePackageList': 'LoginManagerController.changePackageList',
+'POST /loginmanager/verifyChangePackage': 'LoginManagerController.verifyChangePackage',
+
+
+
+// for CommonController
+
+'POST /grace_period/create': 'CommonController.create_grace_days',
+'GET /grace_period/find': 'CommonController.find_grace_period',
+'POST /grace_period/update': 'CommonController.update_grace_period',
+'GET /common/clearDatabase': 'CommonController.clearDatabase',
+'GET /hello':'CommonController.hello',
+'GET /leave':'CommonController.leave'
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
   //  ║║║║╣ ╠╩╗╠═╣║ ║║ ║╠╩╗╚═╗
   //  ╚╩╝╚═╝╚═╝╩ ╩╚═╝╚═╝╩ ╩╚═╝

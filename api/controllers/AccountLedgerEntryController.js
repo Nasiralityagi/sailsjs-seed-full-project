@@ -13,11 +13,11 @@ module.exports = {
         page: 1,
         per_page: 20,
         sort_dir: 'ASC',
-        sort: 'against_account',
+        sort: 'id',
         query: ''
       });
 
-    var sortable = ['against_account'];
+    var sortable = ['id'];
 
     var filters = params.filters;
 
@@ -113,9 +113,35 @@ module.exports = {
           status: 403
         });
 
-      throw new CustomError('Some error occurred. Please contact development team for help.', {
-        status: 403
-      });
+
+    }
+
+    getAccountLedgerEntry()
+      .then(res.ok)
+      .catch(err => util.errorResponse(err, res));
+
+  },
+  loggedUserBalance: async function (req, res) {
+    const account = await Account.find({
+      where: { name: req.token.user.username },
+      select: ['id'],
+    }).limit(1);
+
+    let AccountLedgerEntryId = account[0].id;
+    let queryObject = {
+      where: { account: AccountLedgerEntryId, status_id: { '!=': Status.DELETED } },
+      select: ['balance'],
+      sort: 'updatedAt DESC',
+    };
+    const getAccountLedgerEntry = async () => {
+      let accountLedgerEntry = await AccountLedgerEntry.find(queryObject).limit(1);
+
+      if (accountLedgerEntry.length > 0)
+        return accountLedgerEntry[0].balance;
+      else
+       return 0.00;
+
+
     }
 
     getAccountLedgerEntry()

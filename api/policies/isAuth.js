@@ -1,5 +1,6 @@
 module.exports = function (req, res, next) {
 	var token;
+	
 	// Check if authorization header is present
 	if (req.headers && req.headers.authorization) {
 		//authorization header is present
@@ -14,7 +15,21 @@ module.exports = function (req, res, next) {
 		} else {
 			return res.status(401).send({ err: 'Format is Authorization: Bearer [token]' });
 		}
-	} else {
+	}
+	else if (req.param('token')) {
+
+		token = req.param('token');
+		// We delete the token from param to not mess with blueprints
+		delete req.query.token;
+	
+	}
+	// If connection from socket
+	else if (req.socket && req.socket.handshake && req.socket.handshake.query && req.socket.handshake.query.token) {
+
+		token = req.socket.handshake.query.token;
+
+	}
+	else {
 		//authorization header is not present
 		return res.status(401).send({ err: 'No Authorization header was found' });
 	}
@@ -36,15 +51,15 @@ module.exports = function (req, res, next) {
 			let n = req.url.lastIndexOf('?');
 			strReq = req.url.substring(0, n);
 		}
-		
+
 		let check = false;
 
 		// console.log('user',token.user);
-		const user = await User.findOne({where: {id: token.user.id}}).populate('role');
-		if(!user){
+		const user = await User.findOne({ where: { id: token.user.id } }).populate('role');
+		if (!user) {
 			return res.status(401).send({ err: 'User not found please login  again.' });
 		}
-	
+
 		let roleRoutes = await RolesRoutes.find({ roles: user.role.id, status_id: { '!=': Status.DELETED } }).populate('routes');
 
 		for (let rr of roleRoutes) {
@@ -75,8 +90,8 @@ module.exports = function (req, res, next) {
 		req.token = token;
 		next();
 		return;
-	
-	
+
+
 
 
 	});

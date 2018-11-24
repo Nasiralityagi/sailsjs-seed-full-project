@@ -56,6 +56,30 @@ module.exports = {
       'model': 'account',
     },
   },
+  afterCreate :async function(obj,next){
+   
+    // sails.socket.emit('ledger' , obj);
+    // var io = require('socket.io')(sails.hooks.http.server);
+    const account = await Account.findOne(obj.account);
+    // console.log('obj' , obj.id , account.name )
+    // sails.sockets.join('connection', function(socket){
+
+    //   console.log('a user connected');
+    //   sails.io.emit('ledger', obj);
+    //   // io.emit('message', {type:'new-message', text: message});  
+    //  //  io.emit('ledger');
+    // });
+    if(account)
+      sails.sockets.broadcast(account.name,'balanceUpdate', obj);
+    // io.on('ledger' , ()=>{
+     
+    // });
+   
+   
+    
+    next();
+
+  }
 
 };
 

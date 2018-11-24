@@ -73,10 +73,20 @@ module.exports = {
       'columnType': 'datetime',
       // allowNull:true
     },
+    'in_review': {
+      'type': 'boolean',
+      // 'required': true,
+      'defaultsTo': false,
+    },
     'status_id': {
       'type': 'number',
       // 'required': true,
       'defaultsTo': 1
+    },
+    'requested_status_id': {
+      'type': 'number',
+      // 'required': true,
+      'defaultsTo': 16
     },
     // association 
     'customers': {
@@ -95,10 +105,6 @@ module.exports = {
       'model': 'packages',
       'required' : true,
     },
-    'new_package': {
-      'columnName': 'new_package_id',
-      'model': 'packages',
-    },
     'salesman': {
       'columnName': 'salesman_id',
       'model': 'user',
@@ -113,7 +119,7 @@ module.exports = {
     },
     // Association
     connRenewal: {
-      collection: 'connRenewal',
+      collection: 'connrenewal',
       via: 'connection'
     },
     rejectdoc:{

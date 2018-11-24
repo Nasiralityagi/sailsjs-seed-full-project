@@ -20,7 +20,11 @@ module.exports = {
     
     // host:'139.99.46.84',
     // host:'localhost',
-    host:'192.168.31.93',
+    explicitHost:'192.168.31.92',
+    // explicitHost:'localhost',
+    // Host:'35.240.250.237',
+    Host:'192.168.31.92',
+    // Host:'localhost',
     // host:'192.168.100.5',
     datastores: {
         default: {

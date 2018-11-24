@@ -170,7 +170,8 @@ module.exports = {
                     'package_name': lookupPackage[0],
                     'bandwidth': 2,
                     'data_limit': 2,
-                    'cost_price': 2121,
+                    'cost_price': 2000,
+                    'retail_price': 3000,
                     'status_id': Status.ACTIVE,
                 }).fetch();
 
@@ -304,7 +305,6 @@ module.exports = {
                                         'doc_verified': true,
                                         'customers': newCustomer.id,
                                         'packages': 2,
-                                        'new_package': 2,
                                         'dealer': 2,
                                         'createdBy': 2,
                                         'status_id': Status.ACTIVE,
@@ -314,8 +314,9 @@ module.exports = {
                                         const newInvoices = await Invoices.create({
                                             'customers': _connection.customers,
                                             'total_price': _connection.connection_price,
+                                            'paid_amount': _connection.connection_price,
                                             'package_price': _connection.connection_price,
-                                            'packages': _connection.new_package,
+                                            'packages': _connection.packages,
                                             'status_id': Status.ACTIVE,
                                             'createdBy': _connection.customers, // current logged in user id
                                         }).fetch();
@@ -363,6 +364,7 @@ module.exports = {
                                                 'user': 2,
                                                 'cost_price': packagePrice ? packagePrice.cost_price : 1234,
                                                 'createdBy': 2,
+                                                'is_advance':true,
                                                 'expiration_date': expiration_date,
                                                 'connection': _connection.id
                                             }).fetch();

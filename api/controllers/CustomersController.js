@@ -8,6 +8,7 @@ var _ = require('lodash');
 var moment = require('moment');
 var otplib = require('otplib');
 var request = require('request');
+var fs = require('fs');
 
 const secret = 'KVKFKRCPNZQUYMLXOVYDSQKJKZDTSRLD';
 otplib.authenticator.options = {
@@ -98,7 +99,7 @@ module.exports = {
             }).fetch();
 
             if (newAcount) {
-              await Account.addToCollection(newAcount.id, 'parent', 99);
+              await Account.addToCollection(newAcount.id, 'parent', newCustomer.createdBy == 1 ? 99 : 127);
             }
           }
         }
@@ -113,10 +114,14 @@ module.exports = {
   },
   customerUsernameList: function (req, res) {
     const getCustomers = async () => {
-
+      const cv = await CustomerVerify.find({ where: { doc_type: CustomerVerify.MOBILE, is_verified: true }, select: ['customers'] });
+      let cvArr = [];
+      for (const c of cv) {
+        cvArr.push(c.customers);
+      }
       const customers = await Customers.find({
-        where: { status_id: { '!=': Status.DELETED }, },
-        select: ['username' , 'first_name','last_name']
+        where: { id: { in: cvArr }, status_id: { '!=': Status.DELETED }, },
+        select: ['username', 'first_name', 'last_name']
       });
       if (customers.length < 1) {
         throw new CustomError('customer not found', {
@@ -131,7 +136,6 @@ module.exports = {
       .catch(err => util.errorResponse(err, res));
   },
   customerReport: async function (req, res) {
-
     const customer = await Customers.find(
       {
         where: {
@@ -146,6 +150,7 @@ module.exports = {
     resObj = {
       customer: customer,
     }
+    // console.log(resObj);
     // console.log(customer);
     // return res.ok(resObj);
     var data = {
@@ -158,14 +163,35 @@ module.exports = {
 
     }
     var options = {
-      // uri: 'https://hl.jsreportonline.net/api/report'
+      // uri: 'https://hl.jsreportonline.net/api/report',
       uri: 'http://localhost:5488/api/report',
       method: 'POST',
       json: data,
 
     }
+    // console.log(data);
+    request(options)
+      .on('response', (response) => {
+        console.log(response.statusCode);
+        console.log(response.headers['content-type']);
+      })
+      .on('error', (err) => { throw new Errror(err) })
+      .on('end', () => console.info('Successfully Wrote Badge Sheet'))
+      .pipe(fs.createWriteStream('./assets/files/customer.pdf'));
 
-    request(options).pipe(res);
+    const file = filePath.fileUrl('./assets/files/customer.pdf');
+
+    // fs.createReadStream(file).pipe(res);    
+    // var data = fs.readFileSync('./assets/files/customer.pdf');
+    // res.contentType("application/pdf");
+    // res.send(data);
+    // var downloading = await sails.startDownload('./assets/files/customer.pdf');
+    // return res.download('./assets/files/customer.pdf');
+    // return res.attachment(down)
+    // const resp =  request(options).pipe(res);
+    // console.log(resp);
+    return res.ok(file);
+
 
   },
 
@@ -204,10 +230,8 @@ module.exports = {
         const docType = await RejectDoc.findOne({ connection: connection.id });
         if (docType) {
           if (docType.rejection_type == 1 || docType.rejection_type == 0) {
-
-            const invoiceCount = await Invoices.count({ customers: connection.customers, paid: true, status_id: Status.ACTIVE });
             await Connection.update({ id: connection.id })
-              .set({ status_id: invoiceCount > 0 ? Status.ACTIVE : Status.PENDING });
+              .set({ status_id: Status.PENDING });
             await RejectDoc.destroy({ connection: connection.id });
           }
         }
@@ -446,7 +470,7 @@ module.exports = {
       docArr.push(d.file_of_id);
     }
     const invoice = await Invoices.find({
-      where: { status_id: { '!=': Status.DELETED } },
+      where: { packages: { '!=': null }, status_id: { '!=': Status.DELETED } },
       select: ['customers']
     });
     let invoiceArr = [];
@@ -497,7 +521,7 @@ module.exports = {
         });
       }
 
-      const customers = await Customers.find(queryObject).populate('invoices');
+      const customers = await Customers.find(queryObject).populate('invoices', { where: { packages: { '!=': null } } });
       if (!customers) {
         throw new CustomError('customer not found', {
           status: 403
@@ -543,6 +567,11 @@ module.exports = {
           else if (f.file_path.includes('cnicFront')) {
             customer.cnicFront = filePath.fileUrl(f.file_path);
           }
+        }
+        const connection = await Connection.findOne({customers:customer.id}).populate('rejectdoc');
+        if(connection){
+          customer.rejectDoc = connection.rejectDoc;
+          customer.connection_status = connection.status_id;
         }
 
         return customer;
@@ -695,6 +724,17 @@ module.exports = {
             status: 403
           });
         customer.cnic = c;
+        const connection = await Connection.findOne({ customers: customerId });
+        if (connection) {
+          const docType = await RejectDoc.findOne({ connection: connection.id });
+          if (docType) {
+            if (docType.rejection_type == 1 || docType.rejection_type == 0) {
+              await Connection.update({ id: connection.id })
+                .set({ status_id: Status.PENDING });
+              await RejectDoc.destroy({ connection: connection.id });
+            }
+          }
+        }
       }
       if (req.param('email') != undefined && _.isString(req.param('email'))) {
         customer.email = req.param('email');
@@ -737,7 +777,7 @@ module.exports = {
           }).fetch();
 
           if (newAcount) {
-            await Account.addToCollection(newAcount.id, 'parent', 99);
+            await Account.addToCollection(newAcount.id, 'parent', oldCustomer.createdBy == 1 ? 99 : 127);
           }
         }
         customer.mobile = req.param('mobile');
@@ -851,7 +891,7 @@ module.exports = {
       where: { id: customerId, status_id: { '!=': Status.DELETED } }
     };
     const deleteCustomer = async () => {
-
+      
       const checkCustomer = await Customers.count(queryObject);
 
       if (checkCustomer < 1) {
@@ -860,6 +900,12 @@ module.exports = {
         });
       }
 
+      const invoice = await Invoices.count({customers: customerId});
+      if(invoice > 0 ){
+        throw new CustomError('Cannot delete this customer because it have an invoice against it.', {
+          status: 403
+        });
+      }
 
       const deletedCustomer = await Customers.update({
         id: customerId

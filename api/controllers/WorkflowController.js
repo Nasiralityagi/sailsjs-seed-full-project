@@ -78,11 +78,11 @@ module.exports = {
                 page: 1,
                 per_page: 20,
                 sort_dir: 'ASC',
-                sort: 'id',
+                sort: 'wf_number',
                 query: ''
             });
 
-        var sortable = ['id'];
+        var sortable = ['wf_number'];
 
         var filters = params.filters;
 

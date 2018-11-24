@@ -21,6 +21,10 @@ module.exports = {
       'columnType': "double"
 
     },
+    'retail_price': {
+      'type': 'ref',
+       'columnType': 'double'
+    },
     'data_limit': {
       'type': 'number',
     },
