@@ -62,8 +62,8 @@ module.exports = {
    
     // these details are for abdul.bsse1399@gmail.com. Replace with an linkerbits account
     GOOGLE: {
-        CLIENT_ID: '595077466690-vbcf4akubfdng2b1nrb402mj147e018v.apps.googleusercontent.com',
-        SECRET: 'pLutB0O1ThBSHl4mrw3nCweB'
+        CLIENT_ID: '595077466690-vbcf4ubfdng2b1nrb402mj147e018v.apps.googleusercontent.com',
+        SECRET: 'pLutB0O1ThBS4mrw3nCweB'
     },   
 
     port: 1337,
